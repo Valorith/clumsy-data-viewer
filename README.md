@@ -22,7 +22,7 @@ A lightweight web application for viewing and filtering EverQuest item parsing d
 ### 1. Clone or Download the Repository
 
 ```bash
-cd eq-item-viewer
+cd clumsy-data-viewer
 ```
 
 ### 2. Backend Setup
@@ -48,7 +48,7 @@ DB_PASSWORD=your_database_password
 DB_NAME=your_eq_database
 ```
 
-Alternatively, edit `config.json` directly for more advanced configuration.
+Alternatively, edit `config.json` directly for more advanced configuration. The backend will also honour a custom configuration file by setting `BACKEND_CONFIG_PATH=/path/to/config.json` before starting the server.
 
 ### 3. Frontend Setup
 
@@ -89,6 +89,12 @@ npm run dev
 # Application runs on http://localhost:5173
 ```
 
+### Backend Tests
+
+```bash
+npm test --prefix backend
+```
+
 ### Production Deployment
 
 #### Build Frontend
@@ -108,7 +114,7 @@ server {
 
     # Frontend
     location / {
-        root /path/to/eq-item-viewer/frontend/dist;
+        root /path/to/clumsy-data-viewer/frontend/dist;
         try_files $uri $uri/ /index.html;
     }
 
