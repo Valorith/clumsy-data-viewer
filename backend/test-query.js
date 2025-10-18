@@ -1,18 +1,13 @@
 const mysql = require('mysql2/promise');
+const { getDatabaseCredentials } = require('./config');
 
 async function testQuery() {
   try {
-    const connection = await mysql.createConnection({
-      host: '76.251.85.36',
-      port: 3306,
-      user: 'alla_view',
-      password: 'WuC3qoRayi3IBaBoD22uXI2AcED7RA',
-      database: 'peq'
-    });
-    
+    const connection = await mysql.createConnection(getDatabaseCredentials());
+
     // Test a simple query first
     const query = `
-      SELECT 
+      SELECT
         ip.*,
         i.id,
         i.Name,
@@ -29,11 +24,11 @@ async function testQuery() {
       LEFT JOIN items i ON ip.item_id = i.id
       LIMIT 1
     `;
-    
+
     const [rows] = await connection.execute(query);
     console.log('Query successful! Sample item:');
     console.log(rows[0]);
-    
+
     await connection.end();
   } catch (error) {
     console.error('Error:', error.message);

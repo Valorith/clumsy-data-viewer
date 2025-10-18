@@ -4,24 +4,14 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
-const fs = require('fs');
-const path = require('path');
-require('dotenv').config();
+const { loadConfig, getPoolConfig } = require('./config');
+const { parseNumberParam, parseItemTypesParam } = require('./utils/query-params');
 
-const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
+const config = loadConfig();
 
 const app = express();
 
-const dbConfig = {
-  host: process.env.DB_HOST || config.database.host,
-  port: parseInt(process.env.DB_PORT) || config.database.port,
-  user: process.env.DB_USER || config.database.user,
-  password: process.env.DB_PASSWORD || config.database.password,
-  database: process.env.DB_NAME || config.database.database,
-  connectionLimit: config.database.connectionLimit,
-  waitForConnections: config.database.waitForConnections,
-  queueLimit: config.database.queueLimit
-};
+const dbConfig = getPoolConfig();
 
 const pool = mysql.createPool(dbConfig);
 
@@ -50,13 +40,16 @@ app.get('/api/items', async (req, res) => {
     const offset = (page - 1) * pageSize;
     
     const search = req.query.search || '';
-    const minMeleeDps = parseFloat(req.query.minMeleeDps) || 0;
-    const maxMeleeDps = parseFloat(req.query.maxMeleeDps) || 9999;
-    const minSpellDps = parseFloat(req.query.minSpellDps) || 0;
-    const maxSpellDps = parseFloat(req.query.maxSpellDps) || 9999;
+    const minMeleeDps = parseNumberParam(req.query.minMeleeDps, 0);
+    const maxMeleeDps = parseNumberParam(req.query.maxMeleeDps, 9999);
+    const minSpellDps = parseNumberParam(req.query.minSpellDps, 0);
+    const maxSpellDps = parseNumberParam(req.query.maxSpellDps, 9999);
     const hasBane = req.query.hasBane === 'true';
     const hasBackstab = req.query.hasBackstab === 'true';
-    const itemTypes = req.query.itemTypes ? req.query.itemTypes.split(',').map(t => parseInt(t)) : [];
+    const { itemTypes, error: itemTypesError } = parseItemTypesParam(req.query.itemTypes);
+    if (itemTypesError) {
+      return res.status(400).json({ error: itemTypesError });
+    }
     const sortBy = req.query.sortBy || 'item_id';
     const sortOrder = req.query.sortOrder === 'desc' ? 'DESC' : 'ASC';
     
