@@ -1,0 +1,65 @@
+/* Force full-width layout */
+html, body {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: auto !important;
+}
+
+/* Fix dropdown alignment */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 20px;
+  padding-right: 35px !important;
+}
+
+#app {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.app-main {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 2% !important;
+  padding-right: 2% !important;
+}
+
+/* Ensure all containers use full width */
+.filters-container,
+.item-type-filter,
+.stats-overview {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Better responsive grid for wide screens */
+@media (min-width: 1400px) {
+  .items-container {
+    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr)) !important;
+  }
+  
+  .type-cards {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+  }
+  
+  .filters-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (min-width: 1920px) {
+  .items-container {
+    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)) !important;
+  }
+  
+  .app-main {
+    padding-left: 3% !important;
+    padding-right: 3% !important;
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "server": {
+    "port": 3001,
+    "host": "0.0.0.0",
+    "corsOrigins": ["http://localhost:5173", "http://localhost:3000"]
+  },
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "your_db_user",
+    "password": "your_db_password",
+    "database": "your_eq_database",
+    "connectionLimit": 10,
+    "waitForConnections": true,
+    "queueLimit": 0
+  },
+  "api": {
+    "pageSize": 50,
+    "maxPageSize": 200,
+    "cacheTime": 300
+  }
+}
