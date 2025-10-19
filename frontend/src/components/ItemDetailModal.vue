@@ -14,23 +14,33 @@
           <div class="item-stats-summary">
             <div class="stat-badge">
               <span class="stat-label">Total DPS</span>
-              <span class="stat-value highlight">{{ formatDPS(item.total_dps) }}</span>
+              <span class="stat-value highlight">{{ formatDPS(displayTotalDps) }}</span>
             </div>
-            <div class="stat-badge">
-              <span class="stat-label">MH DPS</span>
-              <span class="stat-value">{{ formatDPS(item.mh_dps) }}</span>
+            <div
+              v-for="comp in mainHandDisplayComponents"
+              :key="comp.key"
+              class="stat-badge"
+              :class="comp.badgeClass"
+              :title="comp.tooltip"
+            >
+              <span class="stat-label">{{ comp.label }}</span>
+              <span class="stat-value">{{ formatDPS(comp.value) }}</span>
             </div>
-            <div class="stat-badge">
-              <span class="stat-label">Spell DPS</span>
-              <span class="stat-value">{{ formatDPS(item.mh_spell_dps) }}</span>
-            </div>
-            <div v-if="item.bane_dps > 0" class="stat-badge bane">
-              <span class="stat-label">Bane DPS</span>
-              <span class="stat-value">{{ formatDPS(item.bane_dps) }}</span>
-            </div>
-            <div v-if="item.bs_dps > 0" class="stat-badge backstab">
-              <span class="stat-label">Backstab DPS</span>
-              <span class="stat-value">{{ formatDPS(item.bs_dps) }}</span>
+          </div>
+
+          <div
+            v-if="offHandDisplayComponents.length"
+            class="item-stats-summary secondary-summary"
+          >
+            <div
+              v-for="offComp in offHandDisplayComponents"
+              :key="`off-${offComp.key}`"
+              class="stat-badge"
+              :class="offComp.badgeClass"
+              :title="offComp.tooltip"
+            >
+              <span class="stat-label">{{ offComp.label }}</span>
+              <span class="stat-value">{{ formatDPS(offComp.value) }}</span>
             </div>
           </div>
 
@@ -112,6 +122,78 @@
 import ChartContainer from './ChartContainer.vue'
 import { formatDPS, getClassNames } from '../utils/formatters'
 
+const MAIN_HAND_COMPONENTS = [
+  {
+    key: 'mh',
+    field: 'mh_dps',
+    label: 'Main Hand DPS',
+    backgroundColor: 'rgba(243, 139, 168, 0.5)',
+    highlightBackground: 'rgba(243, 139, 168, 0.85)',
+    borderColor: 'rgba(243, 139, 168, 0.8)',
+    highlightBorder: '#f38ba8'
+  },
+  {
+    key: 'spell',
+    field: 'mh_spell_dps',
+    label: 'Spell DPS',
+    backgroundColor: 'rgba(166, 227, 161, 0.5)',
+    highlightBackground: 'rgba(166, 227, 161, 0.85)',
+    borderColor: 'rgba(166, 227, 161, 0.8)',
+    highlightBorder: '#a6e3a1'
+  },
+  {
+    key: 'bane',
+    field: 'bane_dps',
+    label: 'Bane DPS',
+    badgeClass: 'bane',
+    backgroundColor: 'rgba(250, 179, 135, 0.5)',
+    highlightBackground: 'rgba(250, 179, 135, 0.85)',
+    borderColor: 'rgba(250, 179, 135, 0.8)',
+    highlightBorder: '#fab387'
+  },
+  {
+    key: 'backstab',
+    field: 'bs_dps',
+    label: 'Backstab DPS',
+    badgeClass: 'backstab',
+    backgroundColor: 'rgba(180, 190, 254, 0.5)',
+    highlightBackground: 'rgba(180, 190, 254, 0.85)',
+    borderColor: 'rgba(180, 190, 254, 0.8)',
+    highlightBorder: '#b4befe'
+  }
+].filter(component => component && component.key && component.field);
+
+const OFF_HAND_COMPONENTS = [
+  {
+    key: 'oh',
+    field: 'oh_dps',
+    label: 'OH DPS',
+    backgroundColor: 'rgba(243, 139, 168, 0.5)',
+    highlightBackground: 'rgba(243, 139, 168, 0.85)',
+    borderColor: 'rgba(243, 139, 168, 0.8)',
+    highlightBorder: '#f38ba8'
+  },
+  {
+    key: 'spell',
+    field: 'oh_spell_dps',
+    label: 'Spell DPS',
+    backgroundColor: 'rgba(166, 227, 161, 0.5)',
+    highlightBackground: 'rgba(166, 227, 161, 0.85)',
+    borderColor: 'rgba(166, 227, 161, 0.8)',
+    highlightBorder: '#a6e3a1'
+  },
+  {
+    key: 'bane',
+    field: 'bane_dps',
+    label: 'Bane DPS',
+    badgeClass: 'bane',
+    backgroundColor: 'rgba(250, 179, 135, 0.5)',
+    highlightBackground: 'rgba(250, 179, 135, 0.85)',
+    borderColor: 'rgba(250, 179, 135, 0.8)',
+    highlightBorder: '#fab387'
+  }
+].filter(component => component && component.key && component.field);
+
 export default {
   name: 'ItemDetailModal',
   components: {
@@ -133,50 +215,82 @@ export default {
   },
   emits: ['close'],
   computed: {
+    mainHandComponents() {
+      return MAIN_HAND_COMPONENTS.filter(component => component && component.key && component.field);
+    },
+    offHandComponents() {
+      return OFF_HAND_COMPONENTS.filter(component => component && component.key && component.field);
+    },
+    componentMetrics() {
+      return {
+        main: this.computeItemMetrics(this.item, this.mainHandComponents, { useOffHandLogic: false }),
+        off: this.computeItemMetrics(this.item, this.offHandComponents, { useOffHandLogic: true })
+      };
+    },
+    displayTotalDps() {
+      return this.componentMetrics.main.targetTotal;
+    },
+    mainHandDisplayComponents() {
+      return this.mainHandComponents.map(component => {
+        const value = this.componentValue('main', component.key);
+        return {
+          ...component,
+          value,
+          tooltip: this.componentTooltip('main', component.key)
+        };
+      }).filter(component => component.value > 0.0001);
+    },
+    offHandDisplayComponents() {
+      return this.offHandComponents.map(component => {
+        const value = this.componentValue('off', component.key);
+        return {
+          ...component,
+          value,
+          tooltip: this.componentTooltip('off', component.key)
+        };
+      }).filter(component => component.value > 0.0001);
+    },
     chartData() {
       const similarItems = this.getSimilarItems();
       const labels = similarItems.map(i => i.name || `Item #${i.item_id}`);
       const currentItemIndex = similarItems.findIndex(i => i.item_id === this.item.item_id);
+      const metricsList = similarItems.map(item =>
+        this.computeItemMetrics(item, this.mainHandComponents, { useOffHandLogic: false })
+      );
+      const isCurrentIndex = (idx) => idx === currentItemIndex;
+      const withHighlight = (defaultColor, highlightColor) =>
+        similarItems.map((_, idx) => (isCurrentIndex(idx) ? highlightColor : defaultColor));
+
+      const datasets = this.mainHandComponents.map(component => {
+        const values = metricsList.map(metrics => metrics.scaled[component.key] ?? 0);
+        return {
+          label: component.label,
+          data: values,
+          backgroundColor: withHighlight(
+            component.backgroundColor || this.getComponentColor(component.key, 'background'),
+            component.highlightBackground || this.getComponentColor(component.key, 'highlightBackground')
+          ),
+          borderColor: withHighlight(
+            component.borderColor || this.getComponentColor(component.key, 'border'),
+            component.highlightBorder || this.getComponentColor(component.key, 'highlightBorder')
+          ),
+          borderWidth: withHighlight(1, 2),
+          borderRadius: 6,
+          stack: 'dps'
+        };
+      }).filter(dataset => dataset.data.some(value => value > 0.0001));
 
       return {
         labels,
-        datasets: [
-          {
-            label: 'Total DPS',
-            data: similarItems.map(i => i.total_dps),
-            backgroundColor: similarItems.map((i, idx) => 
-              idx === currentItemIndex ? 'rgba(137, 180, 250, 0.8)' : 'rgba(69, 71, 90, 0.6)'
-            ),
-            borderColor: similarItems.map((i, idx) => 
-              idx === currentItemIndex ? '#89b4fa' : '#45475a'
-            ),
-            borderWidth: 2,
-            borderRadius: 6,
-            hoverBackgroundColor: 'rgba(137, 180, 250, 0.9)'
-          },
-          {
-            label: 'MH DPS',
-            data: similarItems.map(i => i.mh_dps),
-            backgroundColor: 'rgba(243, 139, 168, 0.5)',
-            borderColor: '#f38ba8',
-            borderWidth: 1,
-            borderRadius: 6,
-            hidden: true
-          },
-          {
-            label: 'Spell DPS',
-            data: similarItems.map(i => i.mh_spell_dps),
-            backgroundColor: 'rgba(166, 227, 161, 0.5)',
-            borderColor: '#a6e3a1',
-            borderWidth: 1,
-            borderRadius: 6,
-            hidden: true
-          }
-        ]
+        datasets
       };
     },
     chartOptions() {
       return {
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
         plugins: {
           legend: {
             display: true,
@@ -201,6 +315,13 @@ export default {
             callbacks: {
               label: (context) => {
                 return `${context.dataset.label}: ${this.formatDPS(context.raw)}`;
+              },
+              footer: (tooltipItems) => {
+                const total = tooltipItems.reduce((sum, item) => {
+                  const value = typeof item.raw === 'number' ? item.raw : 0;
+                  return sum + value;
+                }, 0);
+                return `Total DPS: ${this.formatDPS(total)}`;
               }
             }
           }
@@ -215,7 +336,8 @@ export default {
               color: '#a6adc8',
               maxRotation: 45,
               minRotation: 0
-            }
+            },
+            stacked: true
           },
           y: {
             grid: {
@@ -225,7 +347,8 @@ export default {
               color: '#a6adc8',
               callback: (value) => this.formatDPS(value)
             },
-            beginAtZero: true
+            beginAtZero: true,
+            stacked: true
           }
         }
       };
@@ -234,6 +357,116 @@ export default {
   methods: {
     formatDPS,
     getClassNames,
+    componentTooltip(hand, key) {
+      const metrics = this.componentMetrics?.[hand];
+      if (!metrics || !key) return '';
+
+      const scaled = metrics.scaled?.[key] ?? 0;
+      const raw = metrics.raw?.[key] ?? 0;
+
+      if (Math.abs(scaled - raw) < 0.01) {
+        return `Raw DPS: ${this.formatDPS(raw)}`;
+      }
+
+      return `Scaled DPS: ${this.formatDPS(scaled)} (Raw: ${this.formatDPS(raw)})`;
+    },
+    componentValue(hand, key) {
+      const metrics = this.componentMetrics?.[hand];
+      if (!metrics || !key) return 0;
+      return metrics.scaled?.[key] ?? 0;
+    },
+    computeItemMetrics(item, components, { useOffHandLogic = false } = {}) {
+      const safeComponents = Array.isArray(components)
+        ? components.filter(component => component && component.key && component.field)
+        : [];
+
+      const rawValues = safeComponents.map(component => {
+        const value = Number(item?.[component.field] ?? 0);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+      });
+
+      const rawTotal = rawValues.reduce((sum, value) => sum + value, 0);
+      let targetTotal = Number(item?.total_dps ?? 0);
+
+      if (!Number.isFinite(targetTotal) || targetTotal < 0) {
+        targetTotal = 0;
+      }
+
+      if (useOffHandLogic) {
+        if (rawTotal > targetTotal || targetTotal <= 0) {
+          targetTotal = rawTotal;
+        }
+      } else if (targetTotal <= 0) {
+        targetTotal = rawTotal;
+      }
+
+      let scaledValues;
+      if (rawTotal > 0 && targetTotal > 0) {
+        const scale = targetTotal / rawTotal;
+        scaledValues = rawValues.map(value => value * scale);
+      } else if (targetTotal > 0 && safeComponents.length > 0) {
+        scaledValues = safeComponents.map((_, index) => (index === 0 ? targetTotal : 0));
+      } else {
+        scaledValues = rawValues.map(() => 0);
+      }
+
+      const scaledMap = {};
+      const rawMap = {};
+      safeComponents.forEach((component, index) => {
+        scaledMap[component.key] = scaledValues[index];
+        rawMap[component.key] = rawValues[index];
+      });
+
+      return {
+        scaled: {
+          ...scaledMap,
+          total: scaledValues.reduce((sum, value) => sum + value, 0)
+        },
+        raw: {
+          ...rawMap,
+          total: rawValues.reduce((sum, value) => sum + value, 0)
+        },
+        rawTotal,
+        targetTotal
+      };
+    },
+    getComponentColor(key, variant) {
+      const palette = {
+        mh: {
+          background: 'rgba(243, 139, 168, 0.5)',
+          highlightBackground: 'rgba(243, 139, 168, 0.85)',
+          border: 'rgba(243, 139, 168, 0.8)',
+          highlightBorder: '#f38ba8'
+        },
+        spell: {
+          background: 'rgba(166, 227, 161, 0.5)',
+          highlightBackground: 'rgba(166, 227, 161, 0.85)',
+          border: 'rgba(166, 227, 161, 0.8)',
+          highlightBorder: '#a6e3a1'
+        },
+        bane: {
+          background: 'rgba(250, 179, 135, 0.5)',
+          highlightBackground: 'rgba(250, 179, 135, 0.85)',
+          border: 'rgba(250, 179, 135, 0.8)',
+          highlightBorder: '#fab387'
+        },
+        backstab: {
+          background: 'rgba(180, 190, 254, 0.5)',
+          highlightBackground: 'rgba(180, 190, 254, 0.85)',
+          border: 'rgba(180, 190, 254, 0.8)',
+          highlightBorder: '#b4befe'
+        },
+        oh: {
+          background: 'rgba(243, 139, 168, 0.5)',
+          highlightBackground: 'rgba(243, 139, 168, 0.85)',
+          border: 'rgba(243, 139, 168, 0.8)',
+          highlightBorder: '#f38ba8'
+        }
+      };
+
+      const entry = palette[key] || {};
+      return entry[variant] || entry.background || '#89b4fa';
+    },
     close() {
       this.$emit('close');
     },
@@ -351,6 +584,15 @@ export default {
   gap: 12px;
   margin-bottom: 24px;
   flex-wrap: wrap;
+}
+
+.item-stats-summary.secondary-summary {
+  margin-top: 8px;
+}
+
+.item-stats-summary.secondary-summary .stat-badge {
+  background: rgba(49, 50, 68, 0.45);
+  border-color: rgba(69, 71, 90, 0.5);
 }
 
 .stat-badge {

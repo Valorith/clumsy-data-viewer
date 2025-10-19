@@ -5,7 +5,7 @@
       <div 
         v-for="type in itemTypes" 
         :key="type.id"
-        :class="['type-card', { active: selectedTypes.includes(type.id) }]"
+        :class="['type-card', { active: isTypeActive(type.id) }]"
         @click="toggleType(type.id)"
         :style="{ '--type-color': type.color }"
       >
@@ -26,8 +26,7 @@ export default {
   name: 'ItemTypeFilter',
   props: {
     selectedTypes: {
-      type: Array,
-      default: () => []
+      default: null
     },
     typeCounts: {
       type: Object,
@@ -50,21 +49,45 @@ export default {
       ]
     };
   },
+  computed: {
+    allTypeIds() {
+      return this.itemTypes.map(t => t.id);
+    }
+  },
   methods: {
-    toggleType(typeId) {
-      const newTypes = [...this.selectedTypes];
-      const index = newTypes.indexOf(typeId);
-      
-      if (index > -1) {
-        newTypes.splice(index, 1);
-      } else {
-        newTypes.push(typeId);
+    isTypeActive(typeId) {
+      if (!Array.isArray(this.selectedTypes)) {
+        return true;
       }
-      
-      this.$emit('update', newTypes);
+      if (this.selectedTypes.length === 0) {
+        return false;
+      }
+      return this.selectedTypes.includes(typeId);
+    },
+    toggleType(typeId) {
+      const allIds = this.allTypeIds;
+      const currentlySelected = Array.isArray(this.selectedTypes)
+        ? [...this.selectedTypes]
+        : [...allIds];
+      if (this.isTypeActive(typeId)) {
+        const updated = currentlySelected.filter(id => id !== typeId);
+        this.$emit('update', updated.length === allIds.length ? null : updated);
+        return;
+      }
+
+      if (!currentlySelected.includes(typeId)) {
+        currentlySelected.push(typeId);
+      }
+
+      const unique = Array.from(new Set(currentlySelected));
+      if (unique.length === allIds.length) {
+        this.$emit('update', null);
+      } else {
+        this.$emit('update', unique);
+      }
     },
     selectAll() {
-      this.$emit('update', this.itemTypes.map(t => t.id));
+      this.$emit('update', null);
     },
     clearAll() {
       this.$emit('update', []);

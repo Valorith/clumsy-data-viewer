@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <header class="app-header">
-      <h1>⚔️ EverQuest Item Database</h1>
+      <h1>⚔️ Clumsy's World Parse Viewer</h1>
       <p class="subtitle">Browse and filter parsed item DPS data</p>
     </header>
 
@@ -14,14 +14,15 @@
         @update="handleTypeFilterUpdate"
       />
       
-      <ItemFilters :filters="filters" @update="handleFilterUpdate" />
+      <ItemFilters :filters="filters" @update="handleFilterUpdate" @submit="handleSearchSubmit" />
 
-      <div class="comparison-button-wrapper">
-        <button @click="openGlobalComparison" class="global-comparison-btn">
-          <span class="btn-icon">📊</span>
-          Global DPS Comparison
-        </button>
-      </div>
+      <GlobalComparisonPanel
+        ref="comparisonPanel"
+        :items="allItemsForComparison"
+        :loading="comparisonLoading"
+        :on-item-select="openItemDetail"
+        :highlight-term="trimmedSearchTerm"
+      />
 
       <div class="results-header">
         <h2>Items ({{ totalItems }} total)</h2>
@@ -55,8 +56,7 @@
           v-for="item in items" 
           :key="item.item_id" 
           :item="item"
-          @click="openItemDetail(item)"
-          style="cursor: pointer;"
+          @open="openItemDetail"
         />
       </div>
 
@@ -91,7 +91,7 @@
     </main>
 
     <footer class="app-footer">
-      <p>EverQuest Item Database Viewer | Data sourced from items_parses table</p>
+      <p>Clumsy's World Parse Viewer | Data sourced from items_parses table</p>
     </footer>
 
     <!-- Modals -->
@@ -102,11 +102,11 @@
       @close="closeItemDetail"
     />
 
-    <GlobalComparisonModal
-      :isOpen="isGlobalComparisonOpen"
-      :items="allItemsForComparison"
-      @close="closeGlobalComparison"
-    />
+    <transition name="toast">
+      <div v-if="toastVisible" class="toast-container">
+        <div class="toast-message">{{ toastMessage }}</div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -116,7 +116,7 @@ import ItemFilters from './components/ItemFilters.vue';
 import ItemTypeFilter from './components/ItemTypeFilter.vue';
 import StatsOverview from './components/StatsOverview.vue';
 import ItemDetailModal from './components/ItemDetailModal.vue';
-import GlobalComparisonModal from './components/GlobalComparisonModal.vue';
+import GlobalComparisonPanel from './components/GlobalComparisonPanel.vue';
 import itemsApi from './api/items';
 
 export default {
@@ -127,7 +127,7 @@ export default {
     ItemTypeFilter,
     StatsOverview,
     ItemDetailModal,
-    GlobalComparisonModal
+    GlobalComparisonPanel
   },
   data() {
     return {
@@ -139,7 +139,7 @@ export default {
       pageSize: 50,
       totalItems: 0,
       totalPages: 0,
-      selectedItemTypes: [],
+      selectedItemTypes: null,
       typeCounts: {},
       filters: {
         search: '',
@@ -154,9 +154,13 @@ export default {
         itemTypes: []
       },
       isItemDetailOpen: false,
-      isGlobalComparisonOpen: false,
       selectedItem: {},
-      allItemsForComparison: []
+      allItemsForComparison: [],
+      comparisonLoading: false,
+      latestComparisonRequestId: 0,
+      toastVisible: false,
+      toastMessage: '',
+      toastTimeout: null
     };
   },
   computed: {
@@ -175,24 +179,38 @@ export default {
       }
       
       return pages;
+    },
+    trimmedSearchTerm() {
+      return (this.filters.search || '').trim();
     }
   },
   mounted() {
     this.fetchStats();
     this.fetchItems();
-    this.fetchAllItems();
+    this.fetchComparisonItems();
   },
   methods: {
     async fetchItems() {
       this.loading = true;
       this.error = null;
-      
+
+      if (Array.isArray(this.selectedItemTypes) && this.selectedItemTypes.length === 0) {
+        this.items = [];
+        this.totalItems = 0;
+        this.totalPages = 0;
+        this.loading = false;
+        return;
+      }
+
       try {
+        const { search, ...filterParams } = this.filters;
         const params = {
           page: this.currentPage,
           pageSize: this.pageSize,
-          ...this.filters,
-          itemTypes: this.selectedItemTypes.length > 0 ? this.selectedItemTypes.join(',') : undefined
+          ...filterParams,
+          itemTypes: Array.isArray(this.selectedItemTypes) && this.selectedItemTypes.length > 0
+            ? this.selectedItemTypes.join(',')
+            : undefined
         };
         
         const response = await itemsApi.getItems(params);
@@ -219,15 +237,58 @@ export default {
     },
     
     handleFilterUpdate(newFilters) {
-      this.filters = newFilters;
+      const { search, ...rest } = newFilters;
+      this.filters = { ...rest, search };
       this.currentPage = 1;
       this.fetchItems();
+      this.fetchComparisonItems();
+    },
+    handleSearchSubmit(term) {
+      const trimmed = (term || '').trim();
+      const nextFilters = { ...this.filters, search: trimmed };
+      if (this.filters.search !== trimmed) {
+        this.handleFilterUpdate(nextFilters);
+      } else {
+        this.filters.search = trimmed;
+      }
+
+      this.$nextTick(() => {
+        requestAnimationFrame(() => {
+          this.scrollToComparisonPanel();
+          this.highlightFirstMatch(trimmed);
+        });
+      });
+    },
+    highlightFirstMatch(term) {
+      const trimmed = (term || '').trim();
+      const panel = this.$refs.comparisonPanel;
+      if (!panel) {
+        if (trimmed) {
+          this.showToast(`No items found for "${trimmed}"`);
+        }
+        return;
+      }
+
+      if (typeof panel.focusFirstHighlight === 'function') {
+        const found = panel.focusFirstHighlight();
+        if (!found && trimmed) {
+          this.showToast(`No items found for "${trimmed}"`);
+        }
+        return;
+      }
+
+      // Fallback: if the panel doesn't expose focusFirstHighlight,
+      // rely on internal highlight state.
+      if (trimmed) {
+        this.showToast(`No items found for "${trimmed}"`);
+      }
     },
     
     handleTypeFilterUpdate(newTypes) {
       this.selectedItemTypes = newTypes;
       this.currentPage = 1;
       this.fetchItems();
+      this.fetchComparisonItems();
     },
     
     updateTypeCounts(items) {
@@ -247,18 +308,64 @@ export default {
       }
     },
     
-    async fetchAllItems() {
+    async fetchComparisonItems() {
+      const requestId = Date.now();
+      this.latestComparisonRequestId = requestId;
+      this.comparisonLoading = true;
+
+      if (Array.isArray(this.selectedItemTypes) && this.selectedItemTypes.length === 0) {
+        if (this.latestComparisonRequestId === requestId) {
+          this.allItemsForComparison = [];
+          this.comparisonLoading = false;
+        }
+        return;
+      }
+
+      const { itemTypes: _discarded, search: _searchTerm, ...filterParams } = this.filters;
+      const baseParams = {
+        pageSize: 200,
+        ...filterParams,
+        itemTypes: Array.isArray(this.selectedItemTypes) && this.selectedItemTypes.length > 0
+          ? this.selectedItemTypes.join(',')
+          : undefined
+      };
+
+      let page = 1;
+      let totalPages = 1;
+      const aggregated = [];
+
       try {
-        // Fetch a reasonable amount of items for comparison
-        const response = await itemsApi.getItems({ 
-          pageSize: 500,
-          sortBy: 'total_dps',
-          sortOrder: 'desc'
-        });
-        this.allItemsForComparison = response.items;
+        do {
+          if (this.latestComparisonRequestId !== requestId) {
+            break;
+          }
+
+          const response = await itemsApi.getItems({ ...baseParams, page });
+          const currentItems = Array.isArray(response.items) ? response.items : [];
+          aggregated.push(...currentItems);
+
+          const pagination = response.pagination || {};
+          totalPages = pagination.totalPages || 1;
+
+          if (!currentItems.length || page >= totalPages) {
+            break;
+          }
+
+          page += 1;
+        } while (page <= totalPages);
+
+        if (this.latestComparisonRequestId === requestId) {
+          this.allItemsForComparison = aggregated;
+        }
       } catch (error) {
-        console.error('Failed to fetch all items:', error);
-        this.allItemsForComparison = this.items; // Fallback to current page items
+        console.error('Failed to fetch comparison items:', error);
+        if (this.latestComparisonRequestId === requestId) {
+          this.allItemsForComparison = this.items;
+        }
+      } finally {
+        if (this.latestComparisonRequestId === requestId) {
+          this.comparisonLoading = false;
+        }
       }
     },
     
@@ -270,13 +377,30 @@ export default {
     closeItemDetail() {
       this.isItemDetailOpen = false;
     },
-    
-    openGlobalComparison() {
-      this.isGlobalComparisonOpen = true;
+    scrollToComparisonPanel() {
+      const panelRef = this.$refs.comparisonPanel;
+      const el = panelRef?.$el || panelRef;
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     },
-    
-    closeGlobalComparison() {
-      this.isGlobalComparisonOpen = false;
+    showToast(message) {
+      if (this.toastTimeout) {
+        clearTimeout(this.toastTimeout);
+        this.toastTimeout = null;
+      }
+      this.toastMessage = message;
+      this.toastVisible = true;
+      this.toastTimeout = setTimeout(() => {
+        this.toastVisible = false;
+        this.toastTimeout = null;
+      }, 3000);
+    }
+  },
+  beforeUnmount() {
+    if (this.toastTimeout) {
+      clearTimeout(this.toastTimeout);
+      this.toastTimeout = null;
     }
   }
 };
@@ -372,9 +496,9 @@ body {
 
 .items-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px 16px;
+  margin-bottom: 20px;
 }
 
 .loading {
@@ -484,44 +608,41 @@ body {
   margin-top: auto;
 }
 
-.comparison-button-wrapper {
-  display: flex;
-  justify-content: center;
-  margin: 24px 0;
+
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 2000;
+  pointer-events: none;
 }
 
-.global-comparison-btn {
-  background: linear-gradient(135deg, #89b4fa 0%, #74c7ec 100%);
-  color: #1e1e2e;
-  border: none;
-  border-radius: 12px;
-  padding: 16px 32px;
-  font-size: 1.2rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: all 0.3s;
-  box-shadow: 0 4px 12px rgba(137, 180, 250, 0.3);
+.toast-message {
+  background: rgba(24, 24, 37, 0.95);
+  color: #cdd6f4;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(137, 180, 250, 0.4);
+  font-size: 0.95rem;
+  max-width: 320px;
 }
 
-.global-comparison-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(137, 180, 250, 0.4);
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.global-comparison-btn:active {
-  transform: translateY(0);
-}
-
-.btn-icon {
-  font-size: 1.4rem;
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 @media (max-width: 1200px) {
   .items-container {
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
   }
   
   .app-main {
@@ -545,7 +666,7 @@ body {
   }
   
   .items-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
   
   .app-main {
