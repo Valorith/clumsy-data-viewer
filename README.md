@@ -2,6 +2,8 @@
 
 A lightweight web application for viewing and filtering EverQuest item parsing data with DPS calculations.
 
+<img width="2159" height="1263" alt="image" src="https://github.com/user-attachments/assets/dda40d59-9c41-4f7f-95e7-de2fc5fb693d" />
+
 ## Features
 
 - **Item Browsing**: View parsed item data with DPS calculations
