@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
+const path = require('path');
+const fs = require('fs');
 const { loadConfig, getPoolConfig } = require('./config');
 const { parseNumberParam, parseItemTypesParam } = require('./utils/query-params');
 
@@ -223,6 +225,24 @@ app.get('/api/stats', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
+
+if (process.env.NODE_ENV === 'production') {
+  const publicDir = path.join(__dirname, 'public');
+  const indexFile = path.join(publicDir, 'index.html');
+
+  if (fs.existsSync(publicDir) && fs.existsSync(indexFile)) {
+    app.use(express.static(publicDir));
+
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
+      res.sendFile(indexFile);
+    });
+  } else {
+    console.warn('Production static assets not found; skipping static file serving.');
+  }
+}
 
 const PORT = process.env.SERVER_PORT || config.server.port;
 const HOST = config.server.host;

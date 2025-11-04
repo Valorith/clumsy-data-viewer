@@ -10,6 +10,7 @@ Thumbs.db
 **/dist/
 **/.cache/
 **/coverage/
+backend/public/
 
 # Env & secrets
 **/.env
