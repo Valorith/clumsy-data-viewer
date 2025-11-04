@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "./start.sh"
+    "start": "sh start.sh"
   }
 }
