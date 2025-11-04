@@ -233,8 +233,8 @@ if (process.env.NODE_ENV === 'production') {
   if (fs.existsSync(publicDir) && fs.existsSync(indexFile)) {
     app.use(express.static(publicDir));
 
-    app.get('*', (req, res, next) => {
-      if (req.path.startsWith('/api/')) {
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' || req.path.startsWith('/api/')) {
         return next();
       }
       res.sendFile(indexFile);
