@@ -1,31 +1,38 @@
 <template>
   <section class="global-comparison">
-    <header class="panel-header">
-      <div class="title-group">
-        <span class="title-icon">📊</span>
-        <div>
-          <h2>Global DPS Comparison</h2>
-          <p class="subtitle">Visualise how filtered items stack up overall</p>
+    <div class="panel-frame">
+      <header class="panel-header">
+        <div class="title-group">
+          <span class="title-icon" aria-hidden="true">
+            <svg viewBox="0 0 40 40" width="34" height="34">
+              <path d="M20 4 L24 16 L36 20 L24 24 L20 36 L16 24 L4 20 L16 16 Z" fill="#e6c168" opacity="0.9" />
+              <circle cx="20" cy="20" r="3" fill="#f5d98a" />
+            </svg>
+          </span>
+          <div>
+            <div class="eyebrow">Battle Ledger</div>
+            <h2>Global DPS Comparison</h2>
+            <p class="subtitle">Chart how the filtered artifacts line up against one another</p>
+          </div>
         </div>
-      </div>
-      <div class="chart-controls">
-        <label>
-          View
-          <select v-model="chartType">
-            <option value="total">Total DPS</option>
-            <option value="breakdown">DPS Breakdown</option>
-            <option value="top20">Top 20 Items</option>
-          </select>
-        </label>
-        <label>
-          Sort
-          <select v-model="sortOrder">
-            <option value="desc">Highest First</option>
-            <option value="asc">Lowest First</option>
-          </select>
-        </label>
-      </div>
-    </header>
+        <div class="chart-controls">
+          <label>
+            <span>View</span>
+            <select v-model="chartType">
+              <option value="total">Total DPS</option>
+              <option value="breakdown">DPS Breakdown</option>
+              <option value="top20">Top 20 Items</option>
+            </select>
+          </label>
+          <label>
+            <span>Sort</span>
+            <select v-model="sortOrder">
+              <option value="desc">Highest First</option>
+              <option value="asc">Lowest First</option>
+            </select>
+          </label>
+        </div>
+      </header>
 
     <section class="stats-cards">
       <article class="stat-card">
@@ -134,6 +141,12 @@
           class="top-item-card"
         >
           <div class="rank-badge">#{{ index + 1 }}</div>
+          <ItemIcon
+            :icon="item.icon"
+            :name="item.name || `Item #${item.item_id}`"
+            size="sm"
+            :title="item.name || `Item #${item.item_id}`"
+          />
           <div class="item-info">
             <div
               class="item-name"
@@ -162,35 +175,13 @@
       </div>
     </section>
 
-    <section v-if="filteredItems.length" class="distribution">
-      <div class="distribution-header">
-        <h3>DPS Distribution</h3>
-        <span class="distribution-subtitle">Count of filtered items per DPS band</span>
-      </div>
-      <div class="distribution-chart">
-        <div class="distribution-bars">
-          <div
-            v-for="bucket in distributionBars"
-            :key="bucket.range"
-            class="dist-bar-wrapper"
-          >
-            <div class="dist-bar-fill">
-              <div
-                class="dist-bar"
-                :style="{ height: bucket.height + '%' }"
-              ></div>
-            </div>
-            <div class="dist-label">{{ bucket.range }}</div>
-            <div class="dist-count">{{ bucket.count }}</div>
-          </div>
-        </div>
-      </div>
-    </section>
+    </div>
   </section>
 </template>
 
 <script>
 import ChartContainer from './ChartContainer.vue'
+import ItemIcon from './ItemIcon.vue'
 
 const HAND_COMPONENTS = {
   mh: [
@@ -198,33 +189,33 @@ const HAND_COMPONENTS = {
       key: 'mh',
       label: 'MH DPS',
       field: 'mh_dps',
-      backgroundColor: 'rgba(243, 139, 168, 0.7)',
-      borderColor: '#f38ba8',
-      dotColor: '#f38ba8'
+      backgroundColor: 'rgba(197, 127, 124, 0.62)',
+      borderColor: '#c57f7c',
+      dotColor: '#c57f7c'
     },
     {
       key: 'spell',
       label: 'Spell DPS',
       field: 'mh_spell_dps',
-      backgroundColor: 'rgba(166, 227, 161, 0.7)',
-      borderColor: '#a6e3a1',
-      dotColor: '#a6e3a1'
+      backgroundColor: 'rgba(127, 157, 197, 0.58)',
+      borderColor: '#7f9dc5',
+      dotColor: '#7f9dc5'
     },
     {
       key: 'bane',
       label: 'Bane DPS',
       field: 'bane_dps',
-      backgroundColor: 'rgba(250, 179, 135, 0.7)',
-      borderColor: '#fab387',
-      dotColor: '#fab387'
+      backgroundColor: 'rgba(198, 160, 106, 0.58)',
+      borderColor: '#c6a06a',
+      dotColor: '#c6a06a'
     },
     {
       key: 'backstab',
       label: 'Backstab DPS',
       field: 'bs_dps',
-      backgroundColor: 'rgba(180, 190, 254, 0.7)',
-      borderColor: '#b4befe',
-      dotColor: '#b4befe'
+      backgroundColor: 'rgba(153, 139, 195, 0.58)',
+      borderColor: '#998bc3',
+      dotColor: '#998bc3'
     }
   ],
   oh: [
@@ -232,25 +223,25 @@ const HAND_COMPONENTS = {
       key: 'oh',
       label: 'OH DPS',
       field: 'oh_dps',
-      backgroundColor: 'rgba(243, 139, 168, 0.7)',
-      borderColor: '#f38ba8',
-      dotColor: '#f38ba8'
+      backgroundColor: 'rgba(183, 144, 100, 0.58)',
+      borderColor: '#b79064',
+      dotColor: '#b79064'
     },
     {
       key: 'spell',
       label: 'Spell DPS',
       field: 'oh_spell_dps',
-      backgroundColor: 'rgba(166, 227, 161, 0.7)',
-      borderColor: '#a6e3a1',
-      dotColor: '#a6e3a1'
+      backgroundColor: 'rgba(124, 174, 184, 0.56)',
+      borderColor: '#7caeb8',
+      dotColor: '#7caeb8'
     },
     {
       key: 'bane',
       label: 'Bane DPS',
       field: 'bane_dps',
-      backgroundColor: 'rgba(250, 179, 135, 0.7)',
-      borderColor: '#fab387',
-      dotColor: '#fab387'
+      backgroundColor: 'rgba(198, 160, 106, 0.58)',
+      borderColor: '#c6a06a',
+      dotColor: '#c6a06a'
     }
   ]
 };
@@ -270,23 +261,24 @@ const TYPE_LABELS = {
 };
 
 const TYPE_COLORS = {
-  0: '#FF6B6B',
-  1: '#4ECDC4',
-  2: '#95E77E',
-  3: '#FFD93D',
-  4: '#6C5CE7',
-  5: '#FD79A8',
-  10: '#A29BFE',
-  14: '#FF7675',
-  35: '#74B9FF',
-  45: '#FF7675',
-  51: '#B9FBC0'
+  0: '#b67d74',
+  1: '#728fb6',
+  2: '#84a28f',
+  3: '#b6a16a',
+  4: '#8d80b5',
+  5: '#78aab5',
+  10: '#918fc1',
+  14: '#b88179',
+  35: '#7d95c3',
+  45: '#c08a5d',
+  51: '#8ea79b'
 };
 
 export default {
   name: 'GlobalComparisonPanel',
   components: {
-    ChartContainer
+    ChartContainer,
+    ItemIcon
   },
   props: {
     items: {
@@ -345,7 +337,7 @@ export default {
     },
     chartHeight() {
       const rows = this.displayedItems.length || 1;
-      return Math.max(rows * 34, 420);
+      return Math.max(rows * 40, 420);
     },
     anchorHeight() {
       const rows = this.displayedItems.length || 1;
@@ -367,46 +359,6 @@ export default {
     minDPS() {
       if (!this.filteredItems.length) return 0;
       return Math.min(...this.filteredItems.map(item => this.getHandTotal(item)));
-    },
-    distributionBuckets() {
-      if (!this.filteredItems.length) return [];
-      const bucketSize = 10;
-      const maxValue = Math.ceil(this.maxDPS / bucketSize) * bucketSize || bucketSize;
-      const buckets = [];
-
-      for (let i = 0; i <= maxValue; i += bucketSize) {
-        const count = this.filteredItems.filter(item => {
-          const value = this.getHandTotal(item);
-          return value >= i && value < i + bucketSize;
-        }).length;
-
-        if (count > 0 || (i === 0 && this.filteredItems.length > 0)) {
-          buckets.push({
-            range: `${i}-${i + bucketSize}`,
-            count,
-            percentage: Math.round((count / this.filteredItems.length) * 100)
-          });
-        }
-      }
-
-      return buckets.slice(0, 12);
-    },
-    distributionBars() {
-      const buckets = this.distributionBuckets;
-      if (!buckets.length) return [];
-
-      const maxCount = Math.max(...buckets.map(bucket => bucket.count));
-      const safeMax = maxCount > 0 ? maxCount : 1;
-      const minHeight = buckets.length > 1 ? 12 : 35;
-
-      return buckets.map(bucket => {
-        const ratio = bucket.count / safeMax;
-        const height = Math.max(ratio * 100, bucket.count > 0 ? minHeight : 0);
-        return {
-          ...bucket,
-          height: Math.min(height, 100)
-        };
-      });
     },
     highlightMatches() {
       if (!this.highlightQuery) {
@@ -504,18 +456,20 @@ export default {
             position: 'top',
             onClick: (event, legendItem, legend) => this.handleLegendClick(event, legendItem, legend),
             labels: {
-              color: '#cdd6f4',
+              color: '#ece3c8',
               padding: 15,
               font: {
-                size: 12
+                size: 12,
+                family: "'Cinzel', serif",
+                weight: '600'
               }
             }
           },
           tooltip: {
-            backgroundColor: 'rgba(30, 30, 46, 0.95)',
-            titleColor: '#cdd6f4',
-            bodyColor: '#a6adc8',
-            borderColor: '#89b4fa',
+            backgroundColor: 'rgba(7, 7, 13, 0.95)',
+            titleColor: '#e6c168',
+            bodyColor: '#ece3c8',
+            borderColor: '#e6c168',
             borderWidth: 1,
             padding: 12,
             cornerRadius: 8,
@@ -540,10 +494,11 @@ export default {
           x: {
             stacked: usingStacking,
             grid: {
-              color: 'rgba(69, 71, 90, 0.3)'
+              color: 'rgba(230, 193, 104, 0.08)'
             },
             ticks: {
-              color: '#a6adc8',
+              color: '#b8b399',
+              font: { family: "'JetBrains Mono', monospace" },
               callback: (value) => this.formatDPS(value)
             },
             beginAtZero: true,
@@ -551,38 +506,41 @@ export default {
           },
           y: {
             stacked: usingStacking,
+            afterFit(scale) {
+              scale.width = Math.max(scale.width, vm.chartWidth < 768 ? 170 : 230);
+            },
             grid: {
-              color: 'rgba(69, 71, 90, 0.25)',
+              color: 'rgba(230, 193, 104, 0.06)',
               display: false
             },
             ticks: {
               color(context) {
                 const item = vm.displayedItems?.[context.index];
-                if (!item) return '#cdd6f4';
-                const base = vm.getTypeColor(item.itemtype);
+                if (!item) return '#ece3c8';
                 if (context.index === vm.hoveredLabelIndex) {
-                  return vm.getHoverColor(item.itemtype);
+                  return '#f5d98a';
                 }
                 if (vm.shouldHighlight) {
-                  return vm.isHighlightMatch(item) ? vm.getHoverColor(item.itemtype) : vm.fadeColor(base, 0.35);
+                  return vm.isHighlightMatch(item) ? '#f3e4bb' : 'rgba(184, 179, 153, 0.48)';
                 }
-                return base;
+                return '#ece3c8';
               },
               font(context) {
-                const size = 11;
+                const size = vm.chartWidth < 768 ? 11 : 12;
                 if (context.index === vm.hoveredLabelIndex) {
-                  return { size, weight: '700' };
+                  return { size, weight: '700', family: "'Inter', sans-serif" };
                 }
                 if (vm.shouldHighlight && vm.displayedItems?.[context.index] && !vm.isHighlightMatch(vm.displayedItems[context.index])) {
-                  return { size, weight: '400' };
+                  return { size, weight: '500', family: "'Inter', sans-serif" };
                 }
-                return { size, weight: '500' };
+                return { size, weight: '600', family: "'Inter', sans-serif" };
               },
               autoSkip: false,
               maxRotation: 0,
+              padding: 10,
               callback(value, index) {
                 const label = this.getLabelForValue(value);
-                return label.length > 30 ? `${label.substring(0, 30)}…` : label;
+                return vm.formatChartLabel(label, index);
               }
             }
           }
@@ -930,34 +888,34 @@ export default {
     getComponentColor(key, variant = 'background') {
       const palette = {
         mh: {
-          background: 'rgba(243, 139, 168, 0.5)',
-          highlightBackground: 'rgba(243, 139, 168, 0.85)',
-          border: 'rgba(243, 139, 168, 0.8)',
-          highlightBorder: '#f38ba8'
+          background: 'rgba(197, 127, 124, 0.52)',
+          highlightBackground: 'rgba(197, 127, 124, 0.82)',
+          border: 'rgba(197, 127, 124, 0.72)',
+          highlightBorder: '#c57f7c'
         },
         spell: {
-          background: 'rgba(166, 227, 161, 0.5)',
-          highlightBackground: 'rgba(166, 227, 161, 0.85)',
-          border: 'rgba(166, 227, 161, 0.8)',
-          highlightBorder: '#a6e3a1'
+          background: 'rgba(127, 157, 197, 0.5)',
+          highlightBackground: 'rgba(127, 157, 197, 0.82)',
+          border: 'rgba(127, 157, 197, 0.72)',
+          highlightBorder: '#7f9dc5'
         },
         bane: {
-          background: 'rgba(250, 179, 135, 0.5)',
-          highlightBackground: 'rgba(250, 179, 135, 0.85)',
-          border: 'rgba(250, 179, 135, 0.8)',
-          highlightBorder: '#fab387'
+          background: 'rgba(198, 160, 106, 0.5)',
+          highlightBackground: 'rgba(198, 160, 106, 0.82)',
+          border: 'rgba(198, 160, 106, 0.72)',
+          highlightBorder: '#c6a06a'
         },
         backstab: {
-          background: 'rgba(180, 190, 254, 0.5)',
-          highlightBackground: 'rgba(180, 190, 254, 0.85)',
-          border: 'rgba(180, 190, 254, 0.8)',
-          highlightBorder: '#b4befe'
+          background: 'rgba(153, 139, 195, 0.5)',
+          highlightBackground: 'rgba(153, 139, 195, 0.82)',
+          border: 'rgba(153, 139, 195, 0.72)',
+          highlightBorder: '#998bc3'
         },
         oh: {
-          background: 'rgba(243, 139, 168, 0.5)',
-          highlightBackground: 'rgba(243, 139, 168, 0.85)',
-          border: 'rgba(243, 139, 168, 0.8)',
-          highlightBorder: '#f38ba8'
+          background: 'rgba(183, 144, 100, 0.5)',
+          highlightBackground: 'rgba(183, 144, 100, 0.82)',
+          border: 'rgba(183, 144, 100, 0.72)',
+          highlightBorder: '#b79064'
         }
       };
 
@@ -1042,14 +1000,71 @@ export default {
           return 'Total DPS Comparison';
       }
     },
+    formatChartLabel(label, index) {
+      const raw = String(label || '').trim();
+      if (!raw) {
+        return `Item #${index + 1}`;
+      }
+
+      const maxChars = this.chartWidth < 768 ? 20 : 28;
+      if (raw.length <= maxChars) {
+        return raw;
+      }
+
+      const words = raw.split(/\s+/);
+      const lines = [];
+      let current = '';
+
+      for (const word of words) {
+        const candidate = current ? `${current} ${word}` : word;
+        if (candidate.length <= maxChars) {
+          current = candidate;
+          continue;
+        }
+
+        if (current) {
+          lines.push(current);
+        }
+
+        if (lines.length === 1) {
+          current = word;
+        } else {
+          const remaining = word.length > maxChars ? `${word.slice(0, maxChars - 1)}…` : word;
+          lines.push(remaining);
+          current = '';
+          break;
+        }
+      }
+
+      if (current && lines.length < 2) {
+        lines.push(current);
+      }
+
+      if (lines.length === 0) {
+        return raw.length > maxChars ? `${raw.slice(0, maxChars - 1)}…` : raw;
+      }
+
+      if (lines.length === 1) {
+        return lines[0];
+      }
+
+      const second = lines[1];
+      lines[1] = second.length > maxChars ? `${second.slice(0, maxChars - 1)}…` : second;
+      return lines.slice(0, 2);
+    },
     updateChartDimensions() {
       this.$nextTick(() => {
         const viewportWidth = window.innerWidth || 1024;
         const gutter = viewportWidth > 1280 ? 120 : 40;
         const scrollEl = this.$refs.chartScroll;
         const containerWidth = scrollEl ? scrollEl.clientWidth : 0;
+        if (viewportWidth < 768) {
+          const mobileBaseWidth = containerWidth || Math.max(viewportWidth - 32, 280);
+          this.chartWidth = Math.max(mobileBaseWidth, 540);
+          return;
+        }
         const desiredWidth = Math.max(containerWidth, viewportWidth - gutter);
-        const minWidth = 420;
+        const minWidth = 560;
         const maxWidth = 2000;
         this.chartWidth = Math.min(Math.max(desiredWidth, minWidth), maxWidth);
       });
@@ -1060,42 +1075,71 @@ export default {
 
 <style scoped>
 .global-comparison {
-  margin: 32px 0 36px;
-  padding: 30px 34px;
-  background: linear-gradient(140deg, rgba(30, 30, 46, 0.95) 0%, rgba(24, 24, 37, 0.95) 100%);
-  border-radius: 20px;
-  border: 1px solid rgba(137, 180, 250, 0.25);
-  box-shadow: 0 25px 60px rgba(10, 10, 30, 0.45);
+  position: relative;
 }
 
+.panel-frame {
+  padding: 30px 34px 34px;
+  background:
+    radial-gradient(ellipse 700px 240px at 50% 0%, rgba(230, 193, 104, 0.08), transparent 70%),
+    linear-gradient(180deg, rgba(19, 19, 37, 0.85) 0%, rgba(13, 13, 25, 0.9) 100%);
+  border: 1px solid var(--line-gold);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-frame::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 30px; right: 30px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold) 50%, transparent);
+}
+
+/* ===== Header ===== */
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 20px;
   margin-bottom: 22px;
 }
 
 .title-group {
   display: flex;
   align-items: center;
-  gap: 14px;
-}
-
-.title-group h2 {
-  font-size: 1.9rem;
-  margin: 0;
-  color: #cdd6f4;
+  gap: 16px;
 }
 
 .title-icon {
-  font-size: 2.2rem;
+  filter: drop-shadow(0 0 8px var(--gold-glow));
+  animation: rune-pulse 4s ease-in-out infinite;
+}
+
+.title-group h2 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 4px 0 0;
+  color: var(--ink-primary);
+  letter-spacing: 0.05em;
+}
+
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  color: var(--gold);
+  text-transform: uppercase;
+  opacity: 0.85;
 }
 
 .subtitle {
-  color: #a6adc8;
-  font-size: 0.95rem;
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+  font-style: italic;
   margin-top: 4px;
 }
 
@@ -1103,195 +1147,237 @@ export default {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .chart-controls label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #cdd6f4;
-  font-size: 0.95rem;
+  color: var(--ink-secondary);
+  font-size: 0.9rem;
+}
+
+.chart-controls label > span {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
 }
 
 .chart-controls select {
-  background: rgba(49, 50, 68, 0.6);
-  border: 1px solid rgba(69, 71, 90, 0.6);
-  border-radius: 8px;
-  padding: 6px 12px;
-  color: #cdd6f4;
-  font-size: 0.95rem;
+  background: rgba(7, 7, 13, 0.6);
+  border: 1px solid var(--line-gold);
+  border-radius: var(--r-sm);
+  padding: 7px 14px;
+  color: var(--ink-primary);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  cursor: pointer;
 }
 
+.chart-controls select:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px var(--gold-faint);
+}
+
+/* ===== Stats strip ===== */
 .stats-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
-  background: rgba(49, 50, 68, 0.3);
-  border-radius: 8px;
-  border: 1px solid rgba(69, 71, 90, 0.35);
-  padding: 6px 10px;
+  background: rgba(7, 7, 13, 0.55);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-dim);
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 110px;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--gold);
+  opacity: 0.35;
 }
 
 .stat-label {
-  color: #a6adc8;
-  font-size: 0.68rem;
+  color: var(--ink-muted);
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  letter-spacing: 0.45px;
 }
 
 .stat-value {
-  font-size: 1.1rem;
-  color: #cdd6f4;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  color: var(--ink-primary);
   font-weight: 600;
   line-height: 1.2;
 }
 
 .stat-value.highlight {
-  color: #a6e3a1;
+  color: var(--rune-jade);
+  text-shadow: 0 0 6px rgba(143, 182, 155, 0.16);
 }
 
-.component-controls {
-  margin-bottom: 24px;
-}
-
+/* ===== Hand toggle ===== */
 .hand-toggle {
   margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .hand-options {
   display: inline-flex;
-  gap: 10px;
-  background: rgba(49, 50, 68, 0.4);
-  border: 1px solid rgba(69, 71, 90, 0.6);
-  border-radius: 999px;
+  gap: 4px;
+  background: rgba(7, 7, 13, 0.6);
+  border: 1px solid var(--line-gold);
+  border-radius: var(--r-pill);
   padding: 4px;
 }
 
 .hand-chip {
   background: transparent;
   border: none;
-  color: #cdd6f4;
-  padding: 8px 18px;
-  border-radius: 999px;
+  color: var(--ink-secondary);
+  padding: 7px 18px;
+  border-radius: var(--r-pill);
   cursor: pointer;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  transition: all 0.25s ease;
 }
 
+.hand-chip:hover { color: var(--gold); }
+
 .hand-chip.active {
-  background: rgba(137, 180, 250, 0.25);
-  color: #b4befe;
-  box-shadow: 0 0 12px rgba(137, 180, 250, 0.25);
+  background: linear-gradient(135deg, var(--gold-deep), var(--gold));
+  color: var(--bg-void);
+  box-shadow: 0 0 8px var(--gold-glow);
+  font-weight: 700;
 }
 
 .section-label {
   display: block;
-  color: #a6adc8;
-  font-size: 0.9rem;
+  color: var(--ink-muted);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
   margin-bottom: 10px;
 }
+
+/* ===== Component chips ===== */
+.component-controls { margin-bottom: 22px; }
 
 .component-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .component-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(69, 71, 90, 0.6);
-  background: rgba(49, 50, 68, 0.5);
-  color: #cdd6f4;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-dim);
+  background: rgba(7, 7, 13, 0.55);
+  color: var(--ink-secondary);
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  transition: all 0.25s ease;
   position: relative;
 }
 
+.component-chip:hover {
+  border-color: var(--line-gold);
+  color: var(--gold);
+}
+
 .component-chip.active {
-  background: linear-gradient(135deg, rgba(137, 180, 250, 0.35) 0%, rgba(76, 131, 201, 0.35) 100%);
-  border-color: rgba(137, 180, 250, 0.85);
-  color: #dce5ff;
-  box-shadow: 0 6px 18px rgba(137, 180, 250, 0.35);
-  transform: translateY(-2px);
+  background: var(--gold-faint);
+  border-color: var(--gold);
+  color: var(--ink-primary);
+  box-shadow: 0 0 8px var(--gold-glow);
   font-weight: 600;
 }
 
 .component-chip.active .color-dot {
   transform: scale(1.25);
-  box-shadow: 0 0 10px currentColor;
-}
-
-.component-chip:hover {
-  border-color: rgba(137, 180, 250, 0.6);
-  color: #ced8ff;
-}
-
-.component-chip:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  box-shadow: 0 0 6px currentColor;
 }
 
 .chip-check {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #1e2235;
-  background: rgba(204, 208, 255, 0.9);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--bg-void);
+  background: var(--gold);
   border-radius: 50%;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 8px rgba(204, 208, 255, 0.6);
+  box-shadow: 0 0 4px var(--gold-glow);
 }
 
 .color-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   display: inline-block;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* ===== Chart ===== */
 .chart-section {
-  background: rgba(17, 17, 27, 0.65);
-  border-radius: 16px;
-  border: 1px solid rgba(69, 71, 90, 0.6);
-  padding: 20px 24px;
-  margin-bottom: 28px;
+  background: rgba(7, 7, 13, 0.55);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-dim);
+  padding: 18px 22px;
+  margin-bottom: 24px;
+  position: relative;
 }
 
 .chart-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .chart-title {
-  font-size: 1.3rem;
-  color: #cdd6f4;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--ink-primary);
   margin: 0;
+  letter-spacing: 0.05em;
 }
 
 .item-count {
-  color: #a6adc8;
-  font-size: 0.9rem;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
 }
 
 .chart-wrapper {
@@ -1304,15 +1390,19 @@ export default {
   align-items: center;
   justify-content: center;
   height: 420px;
-  color: #a6adc8;
-  font-size: 1rem;
+  color: var(--ink-muted);
+  font-family: var(--font-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
 }
 
 .chart-scroll {
   max-height: 580px;
   overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 12px;
+  overflow-x: auto;
+  padding-right: 10px;
+  padding-bottom: 6px;
 }
 
 .chart-stage {
@@ -1327,186 +1417,194 @@ export default {
   pointer-events: none;
 }
 
-.chart-canvas-layer {
-  position: absolute;
-  inset: 0;
-}
+.chart-canvas-layer { position: absolute; inset: 0; }
 
-.chart-scroll canvas {
-  display: block;
-}
+.chart-scroll canvas { display: block; }
 
-.top-items {
-  margin-bottom: 32px;
-}
+/* ===== Top items ===== */
+.top-items { margin-bottom: 28px; }
 
 .top-items h3 {
+  font-family: var(--font-display);
   margin-bottom: 14px;
-  color: #cdd6f4;
+  color: var(--ink-primary);
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
 }
 
 .top-items-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
 }
 
 .top-item-card {
   display: flex;
   align-items: center;
   gap: 14px;
-  background: rgba(49, 50, 68, 0.6);
-  border: 1px solid rgba(69, 71, 90, 0.5);
-  border-radius: 12px;
-  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(19, 19, 37, 0.85), rgba(7, 7, 13, 0.85));
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  padding: 12px 16px;
+  position: relative;
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.top-item-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--gold) 0%, transparent 120%);
+  opacity: 0.8;
+}
+
+.top-item-card:hover {
+  border-color: var(--line-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.42), 0 0 10px var(--gold-glow);
 }
 
 .rank-badge {
-  background: rgba(137, 180, 250, 0.3);
+  background: linear-gradient(135deg, var(--gold-deep), var(--gold));
   border-radius: 50%;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  color: #b4befe;
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--bg-void);
+  box-shadow: 0 0 8px var(--gold-glow);
+  flex-shrink: 0;
+  font-size: 0.85rem;
 }
 
-.item-info {
-  flex: 1;
-}
+.item-info { flex: 1; min-width: 0; }
 
 .item-name {
+  font-family: var(--font-display);
   font-weight: 600;
-  color: #cdd6f4;
+  color: var(--ink-primary);
   margin-bottom: 4px;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item-name.hovered {
-  text-shadow: 0 0 8px rgba(137, 180, 250, 0.45);
+  text-shadow: 0 0 6px var(--gold-glow);
 }
 
 .item-name.highlighted {
-  text-shadow: 0 0 10px rgba(137, 180, 250, 0.4);
+  text-shadow: 0 0 8px var(--gold-glow);
   font-weight: 700;
 }
 
 .item-stats {
   display: flex;
   gap: 12px;
-  color: #a6adc8;
-  font-size: 0.9rem;
-}
-
-.link-icon {
-  font-size: 1.2rem;
-  text-decoration: none;
-}
-
-.distribution {
-  margin-top: 28px;
-}
-
-.distribution-header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.distribution h3 {
-  color: #cdd6f4;
-  margin: 0;
-}
-
-.distribution-subtitle {
-  color: #a6adc8;
-  font-size: 0.85rem;
-}
-
-.distribution-chart {
-  background: rgba(17, 17, 27, 0.55);
-  border: 1px solid rgba(69, 71, 90, 0.6);
-  border-radius: 14px;
-  padding: 18px 20px 16px;
-}
-
-.distribution-bars {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.dist-bar-wrapper {
-  display: flex;
-  flex-direction: column;
+  color: var(--ink-muted);
+  font-size: 0.82rem;
   align-items: center;
-  gap: 8px;
-  min-width: 64px;
 }
 
-.dist-bar-fill {
-  position: relative;
-  width: 100%;
-  height: 140px;
-  background: linear-gradient(180deg, rgba(137, 180, 250, 0.12), transparent);
-  border-radius: 10px;
-  border: 1px solid rgba(137, 180, 250, 0.18);
-  display: flex;
-  align-items: flex-end;
-  overflow: hidden;
-}
-
-.dist-bar {
-  width: 100%;
-  background: linear-gradient(180deg, rgba(137, 180, 250, 0.85) 0%, rgba(137, 180, 250, 0.45) 100%);
-  border-radius: 8px 8px 2px 2px;
-  box-shadow: 0 8px 18px rgba(137, 180, 250, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.dist-bar-wrapper:hover .dist-bar {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 22px rgba(137, 180, 250, 0.35);
-}
-
-.dist-label {
-  color: #a6adc8;
-  font-size: 0.8rem;
-}
-
-.dist-count {
-  color: #cdd6f4;
-  font-size: 0.8rem;
+.dps-value {
+  font-family: var(--font-mono);
+  color: var(--rune-jade);
   font-weight: 600;
 }
 
-@media (max-width: 1200px) {
-  .global-comparison {
-    padding: 24px 22px;
-  }
+.item-type {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
 
-  .chart-scroll {
-    max-height: 480px;
-  }
+.link-icon {
+  font-size: 1.1rem;
+  text-decoration: none;
+  opacity: 0.55;
+  transition: all 0.2s;
+}
+
+.link-icon:hover { opacity: 1; filter: drop-shadow(0 0 4px var(--gold)); }
+
+@media (max-width: 1200px) {
+  .panel-frame { padding: 24px 22px; }
+  .chart-scroll { max-height: 480px; }
 }
 
 @media (max-width: 768px) {
-  .panel-header {
+  .panel-frame { padding: 22px 16px 20px; }
+  .panel-header { flex-direction: column; align-items: flex-start; }
+  .title-group { align-items: flex-start; }
+  .eyebrow {
+    letter-spacing: 0.28em;
+  }
+  .title-group h2 {
+    font-size: 1.2rem;
+    letter-spacing: 0.04em;
+  }
+  .subtitle {
+    font-size: 0.82rem;
+  }
+  .chart-controls {
+    width: 100%;
+    display: grid;
+    gap: 10px;
+  }
+  .chart-controls label {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .chart-controls select {
+    flex: 1;
+    min-width: 0;
+  }
+  .stats-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hand-toggle,
+  .component-controls {
+    align-items: flex-start;
+  }
+  .section-label {
+    width: 100%;
+    margin-bottom: 6px;
+  }
+  .hand-options {
+    width: 100%;
+  }
+  .hand-chip {
+    flex: 1;
+    text-align: center;
+  }
+  .component-options { gap: 8px; }
+  .chart-section {
+    padding: 14px 14px 16px;
+  }
+  .chart-header {
     flex-direction: column;
     align-items: flex-start;
   }
-
-  .chart-controls {
-    width: 100%;
-    justify-content: flex-start;
+  .chart-wrapper,
+  .chart-status {
+    min-height: 320px;
+    height: auto;
   }
+  .chart-scroll {
+    max-height: 360px;
+    padding-right: 0;
+  }
+  .top-items-grid { grid-template-columns: 1fr; }
+}
 
-  .component-options {
-    gap: 8px;
+@media (max-width: 520px) {
+  .stats-cards {
+    grid-template-columns: 1fr;
   }
 }
 </style>

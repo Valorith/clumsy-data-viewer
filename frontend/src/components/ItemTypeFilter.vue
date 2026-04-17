@@ -1,24 +1,39 @@
 <template>
-  <div class="item-type-filter">
-    <h3 class="filter-title">Filter by Item Type</h3>
-    <div class="type-cards">
-      <div 
-        v-for="type in itemTypes" 
+  <section class="item-type-filter">
+    <div class="filter-header">
+      <div class="title-row">
+        <span class="glyph" aria-hidden="true">⬢</span>
+        <div>
+          <div class="eyebrow">Arsenal</div>
+          <h3 class="filter-title">Choose your discipline</h3>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button @click="selectAll" class="chip-btn ghost">All</button>
+        <button @click="clearAll" class="chip-btn danger">None</button>
+      </div>
+    </div>
+
+    <div class="hex-rack">
+      <button
+        v-for="type in itemTypes"
         :key="type.id"
-        :class="['type-card', { active: isTypeActive(type.id) }]"
+        type="button"
+        :class="['hex-tile', { active: isTypeActive(type.id), hasCount: getTypeCount(type.id) > 0 }]"
         @click="toggleType(type.id)"
         :style="{ '--type-color': type.color }"
       >
-        <div class="type-icon">{{ type.icon }}</div>
-        <div class="type-name">{{ type.name }}</div>
-        <div class="type-count">{{ getTypeCount(type.id) }}</div>
-      </div>
+        <span class="hex-shape" aria-hidden="true">
+          <span class="hex-inner"></span>
+          <span class="hex-core"></span>
+        </span>
+        <span class="hex-icon">{{ type.icon }}</span>
+        <span class="hex-name">{{ type.name }}</span>
+        <span v-if="getTypeCount(type.id) > 0" class="hex-count">{{ getTypeCount(type.id) }}</span>
+        <span class="hex-check" aria-hidden="true">✓</span>
+      </button>
     </div>
-    <div class="filter-actions">
-      <button @click="selectAll" class="btn-text">Select All</button>
-      <button @click="clearAll" class="btn-text">Clear All</button>
-    </div>
-  </div>
+  </section>
 </template>
 
 <script>
@@ -37,15 +52,15 @@ export default {
   data() {
     return {
       itemTypes: [
-        { id: 0, name: '1H Slash', icon: '⚔', color: '#FF6B6B' },
-        { id: 1, name: '2H Slash', icon: '🗡', color: '#4ECDC4' },
-        { id: 2, name: 'Piercing', icon: '🗡', color: '#95E77E' },
-        { id: 3, name: '1H Blunt', icon: '🔨', color: '#FFD93D' },
-        { id: 4, name: '2H Blunt', icon: '🔨', color: '#6C5CE7' },
-        { id: 5, name: 'Archery', icon: '🏹', color: '#FD79A8' },
-        { id: 10, name: 'Armor', icon: '👕', color: '#A29BFE' },
-        { id: 35, name: '2H Piercing', icon: '⚔', color: '#74B9FF' },
-        { id: 45, name: 'Hand to Hand', icon: '👊', color: '#FF7675' }
+        { id: 0, name: '1H Slash', icon: '⚔', color: '#b97b76' },
+        { id: 1, name: '2H Slash', icon: '🗡', color: '#be9a68' },
+        { id: 2, name: 'Piercing', icon: '🗡', color: '#84a28f' },
+        { id: 3, name: '1H Blunt', icon: '🔨', color: '#b6a16a' },
+        { id: 4, name: '2H Blunt', icon: '🔨', color: '#9888c0' },
+        { id: 5, name: 'Archery', icon: '🏹', color: '#78aab5' },
+        { id: 10, name: 'Armor', icon: '👕', color: '#918fc1' },
+        { id: 35, name: '2H Pierce', icon: '⚔', color: '#7d95c3' },
+        { id: 45, name: 'Hand-to-Hand', icon: '👊', color: '#c08d62' }
       ]
     };
   },
@@ -101,141 +116,263 @@ export default {
 
 <style scoped>
 .item-type-filter {
-  background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.filter-title {
-  color: #cdd6f4;
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: 20px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.type-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.type-card {
-  background: rgba(49, 50, 68, 0.6);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  padding: 16px 12px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-align: center;
+  background: linear-gradient(180deg, rgba(19, 19, 37, 0.78) 0%, rgba(13, 13, 25, 0.84) 100%);
+  border: 1px solid var(--line-gold);
+  border-radius: var(--r-lg);
+  padding: 24px 28px 26px;
+  box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
 }
 
-.type-card::before {
+.item-type-filter::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, transparent 40%, var(--type-color, #89b4fa) 100%);
-  opacity: 0;
-  transition: opacity 0.3s;
-  z-index: 0;
+  top: 0; left: 30px; right: 30px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold) 50%, transparent);
 }
 
-.type-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  border-color: var(--type-color, #89b4fa);
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
 }
 
-.type-card:hover::before {
-  opacity: 0.1;
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
-.type-card.active {
-  background: rgba(137, 180, 250, 0.2);
-  border-color: var(--type-color, #89b4fa);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(137, 180, 250, 0.3);
+.glyph {
+  color: var(--gold);
+  font-size: 1.4rem;
+  animation: rune-pulse 3.2s ease-in-out infinite;
 }
 
-.type-card.active::before {
-  opacity: 0.2;
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  color: var(--gold);
+  text-transform: uppercase;
+  opacity: 0.8;
 }
 
-.type-icon {
-  font-size: 2rem;
-  margin-bottom: 8px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-  position: relative;
-  z-index: 1;
-}
-
-.type-card:hover .type-icon,
-.type-card.active .type-icon {
-  animation: bounce 0.5s;
-}
-
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-.type-name {
-  color: #cdd6f4;
-  font-size: 0.85rem;
-  font-weight: 500;
-  margin-bottom: 4px;
-  position: relative;
-  z-index: 1;
-}
-
-.type-count {
-  color: #a6adc8;
-  font-size: 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 2px 8px;
-  border-radius: 12px;
-  display: inline-block;
-  position: relative;
-  z-index: 1;
-}
-
-.type-card.active .type-count {
-  background: var(--type-color, #89b4fa);
-  color: #1e1e2e;
+.filter-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
   font-weight: 600;
+  color: var(--ink-primary);
+  letter-spacing: 0.05em;
+  margin: 0;
 }
 
 .filter-actions {
   display: flex;
-  justify-content: center;
-  gap: 20px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(69, 71, 90, 0.5);
+  gap: 8px;
 }
 
-.btn-text {
-  background: none;
-  border: none;
-  color: #89b4fa;
-  font-size: 0.95rem;
-  font-weight: 500;
+.chip-btn {
+  background: rgba(7, 7, 13, 0.55);
+  border: 1px solid var(--line-soft);
+  color: var(--ink-secondary);
+  padding: 6px 16px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 8px;
   transition: all 0.2s;
 }
 
-.btn-text:hover {
-  background: rgba(137, 180, 250, 0.1);
-  transform: translateY(-1px);
+.chip-btn.ghost:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 8px var(--gold-glow);
+}
+
+.chip-btn.danger:hover {
+  border-color: var(--rune-flame);
+  color: var(--rune-flame);
+  box-shadow: 0 0 8px rgba(202, 133, 120, 0.16);
+}
+
+/* ==========================
+   Hex rack grid
+   ========================== */
+.hex-rack {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 16px 14px;
+}
+
+.hex-tile {
+  all: unset;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 8px 14px;
+  text-align: center;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1.2);
+}
+
+.hex-tile:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: var(--r-sm); }
+
+.hex-shape {
+  position: absolute;
+  inset: 4px 0 0 0;
+  pointer-events: none;
+  display: block;
+  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(7, 7, 13, 0.5) 100%);
+  border: 0;
+}
+
+.hex-shape::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, transparent 30%);
+  mix-blend-mode: screen;
+}
+
+.hex-inner {
+  position: absolute;
+  inset: 2px;
+  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+  background: linear-gradient(180deg, rgba(19, 19, 37, 0.95), rgba(7, 7, 13, 0.95));
+  border: 0;
+  display: block;
+  transition: background 0.3s;
+}
+
+.hex-core {
+  position: absolute;
+  inset: -2px;
+  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+  background: linear-gradient(180deg, var(--type-color, var(--gold)) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: block;
+}
+
+.hex-tile:hover {
+  transform: translateY(-3px);
+}
+
+.hex-tile:hover .hex-core { opacity: 0.35; }
+.hex-tile:hover .hex-inner { background: linear-gradient(180deg, rgba(35, 35, 61, 0.95), rgba(7, 7, 13, 0.95)); }
+
+.hex-tile.active .hex-core { opacity: 0.35; }
+.hex-tile.active .hex-inner {
+  background:
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--type-color, var(--gold)) 16%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(44, 44, 74, 0.9), rgba(13, 13, 25, 0.95));
+}
+
+.hex-tile.active { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--type-color, var(--gold)) 35%, transparent)); }
+
+.hex-icon {
+  position: relative;
+  font-size: 1.9rem;
+  z-index: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+  transition: transform 0.3s;
+}
+
+.hex-tile:hover .hex-icon { transform: scale(1.1) rotate(-3deg); }
+
+.hex-name {
+  position: relative;
+  font-family: var(--font-display);
+  color: var(--ink-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.hex-tile.active .hex-name { color: var(--type-color, var(--gold)); }
+
+.hex-count {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-mono);
+  color: var(--ink-muted);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line-dim);
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.hex-tile.active .hex-count {
+  color: var(--bg-void);
+  background: var(--type-color, var(--gold));
+  border-color: transparent;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.hex-check {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--type-color, var(--gold));
+  color: var(--bg-void);
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1.3);
+  box-shadow: 0 0 6px currentColor;
+}
+
+.hex-tile.active .hex-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (max-width: 600px) {
+  .hex-rack {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 10px;
+  }
+
+  .filter-title {
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
+  }
+
+  .hex-tile {
+    padding: 16px 6px 12px;
+  }
+
+  .hex-icon {
+    font-size: 1.65rem;
+  }
+
+  .hex-name {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+  }
 }
 </style>

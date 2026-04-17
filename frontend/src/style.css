@@ -1,11 +1,69 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* =====================================================
+   Arcane Codex — Design System
+   ===================================================== */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+:root {
+  /* --- Background layers (void → parchment) --- */
+  --bg-void: #07070d;
+  --bg-abyss: #0d0d19;
+  --bg-ink: #131325;
+  --bg-stone: #1a1a2e;
+  --bg-mist: #23233d;
+  --bg-parch: #2c2c4a;
+
+  /* --- Burnished gold (primary accent) --- */
+  --gold: #e6c168;
+  --gold-bright: #f5d98a;
+  --gold-deep: #a87f2f;
+  --gold-glow: rgba(230, 193, 104, 0.22);
+  --gold-faint: rgba(230, 193, 104, 0.05);
+
+  /* --- Elemental / rune palette --- */
+  --rune-mana: #88a5cc;     /* spell, info */
+  --rune-flame: #ca8578;    /* bane, fire */
+  --rune-jade: #8fb69b;     /* totals, success */
+  --rune-violet: #a292c8;   /* backstab */
+  --rune-amber: #c79d66;    /* secondary hi */
+  --rune-frost: #7fb8c0;    /* off-hand */
+
+  /* --- Text --- */
+  --ink-primary: #ece3c8;
+  --ink-secondary: #b8b399;
+  --ink-muted: #787562;
+  --ink-faded: #4e4c40;
+
+  /* --- Structural --- */
+  --line-gold: rgba(230, 193, 104, 0.18);
+  --line-soft: rgba(230, 193, 104, 0.06);
+  --line-cool: rgba(136, 165, 204, 0.18);
+  --line-dim: rgba(255, 255, 255, 0.06);
+
+  /* --- Shadows & glows --- */
+  --shadow-glow: 0 0 18px rgba(230, 193, 104, 0.12);
+  --shadow-glow-strong: 0 0 28px rgba(230, 193, 104, 0.2);
+  --shadow-deep: 0 24px 60px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+  /* --- Radii --- */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+  --r-pill: 999px;
+
+  /* --- Fonts --- */
+  --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+
+  font-family: var(--font-body);
+  line-height: 1.55;
+  font-weight: 400;
+  color-scheme: dark;
+
+  color: var(--ink-primary);
+  background-color: var(--bg-void);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,47 +71,69 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
+/* =====================================================
+   Global background — layered "mana veins" + rune grid
+   ===================================================== */
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background:
+    radial-gradient(ellipse 1200px 600px at 15% -10%, rgba(136, 165, 204, 0.09), transparent 60%),
+    radial-gradient(ellipse 1000px 500px at 90% 0%, rgba(162, 146, 200, 0.08), transparent 55%),
+    radial-gradient(ellipse 900px 500px at 50% 110%, rgba(230, 193, 104, 0.06), transparent 60%),
+    linear-gradient(180deg, var(--bg-void) 0%, var(--bg-abyss) 60%, var(--bg-void) 100%);
+  background-attachment: fixed;
+  position: relative;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.24;
+  background-image:
+    linear-gradient(rgba(230, 193, 104, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(230, 193, 104, 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, #000 40%, transparent 100%);
+}
+
+a {
+  font-weight: 500;
+  color: var(--gold);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+a:hover {
+  color: var(--gold-bright);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  color: var(--ink-primary);
 }
 
 button {
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+  padding: 0.55em 1.1em;
+  font-size: 0.95em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: transparent;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
+  transition: all 0.2s ease;
+  color: var(--ink-primary);
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-.card {
-  padding: 2em;
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 #app {
@@ -61,17 +141,57 @@ button:focus-visible {
   margin: 0;
   padding: 0;
   text-align: left;
+  position: relative;
+  z-index: 1;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* =====================================================
+   Scrollbar — golden rune rail
+   ===================================================== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(7, 7, 13, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--gold-deep), var(--gold));
+  border-radius: var(--r-pill);
+  border: 2px solid var(--bg-void);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--gold), var(--gold-bright));
+}
+
+/* =====================================================
+   Utility / animation primitives
+   ===================================================== */
+@keyframes rune-pulse {
+  0%, 100% { opacity: 0.5; filter: drop-shadow(0 0 4px currentColor); }
+  50% { opacity: 1; filter: drop-shadow(0 0 12px currentColor); }
+}
+
+@keyframes ember-drift {
+  from { transform: translateY(0) scale(1); opacity: 0; }
+  20% { opacity: 0.9; }
+  to { transform: translateY(-60px) scale(0.4); opacity: 0; }
+}
+
+@keyframes aurora-shift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(-3%, -1%, 0) rotate(1deg); }
+}
+
+@keyframes glyph-sweep {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.display-font {
+  font-family: var(--font-display);
+}
+
+.mono-font {
+  font-family: var(--font-mono);
 }

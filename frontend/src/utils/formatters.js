@@ -48,25 +48,24 @@ export function getSlotNames(slotBitMask) {
 
 export function getItemTypeColor(itemType) {
   const typeColors = {
-    0: '#808080',  // 1HS
-    1: '#4169E1',  // 2HS
-    2: '#FF6347',  // Piercing
-    3: '#808080',  // 1HB
-    4: '#4169E1',  // 2HB
-    5: '#32CD32',  // Archery
-    35: '#808080', // 2HP
-    7: '#FFD700',  // Throwing
-    8: '#9370DB',  // Shield
-    10: '#FF69B4', // Armor
-    11: '#FF69B4', // Misc
-    20: '#9370DB', // Spell
-    21: '#9370DB', // Potion
-    27: '#87CEEB', // Light
-    35: '#808080', // 2HP
-    45: '#FF8C00', // H2H
+    0: '#b67d74',  // 1HS
+    1: '#728fb6',  // 2HS
+    2: '#c28a67',  // Piercing
+    3: '#9a8f73',  // 1HB
+    4: '#8d80b5',  // 2HB
+    5: '#7ea18f',  // Archery
+    35: '#7a93bc', // 2HP
+    7: '#c6a36a',  // Throwing
+    8: '#9086b0',  // Shield
+    10: '#9b8fba', // Armor
+    11: '#9b8fba', // Misc
+    20: '#7e97c2', // Spell
+    21: '#8f86b7', // Potion
+    27: '#78aabd', // Light
+    45: '#c08a5d', // H2H
   };
-  
-  return typeColors[itemType] || '#CCCCCC';
+
+  return typeColors[itemType] || '#b6b3a5';
 }
 
 export function getItemTypeName(itemType) {
