@@ -1,23 +1,20 @@
 <template>
   <component
     :is="tag"
-    :class="['item-icon', `item-icon--${size}`, { 'is-fallback': !hasRemoteIcon }]"
+    :class="['item-icon', `item-icon--${size}`, { 'is-fallback': !hasSpireIcon }]"
     :title="title"
   >
-    <img
-      v-if="hasRemoteIcon"
-      :src="remoteSrc"
-      alt=""
+    <span
+      v-if="hasSpireIcon"
+      :class="['spire-item-icon', spriteClass]"
       aria-hidden="true"
-      loading="lazy"
-      @error="handleError"
-    />
+    ></span>
     <span v-else aria-hidden="true">{{ fallbackText }}</span>
   </component>
 </template>
 
 <script>
-const ICON_BASE_URL = 'https://alla.clumsysworld.com/images/icons';
+import { ensureSpireSpriteStyles, normalizeIconId } from '../utils/spire-assets';
 
 export default {
   name: 'ItemIcon',
@@ -46,41 +43,23 @@ export default {
       default: 'span'
     }
   },
-  data() {
-    return {
-      imageFailed: false
-    };
-  },
   computed: {
     normalizedIcon() {
-      if (this.icon === null || this.icon === undefined) {
-        return '';
-      }
-
-      return String(this.icon).trim();
+      return normalizeIconId(this.icon);
     },
-    remoteSrc() {
-      return /^\d+$/.test(this.normalizedIcon)
-        ? `${ICON_BASE_URL}/item_${this.normalizedIcon}.png`
-        : null;
+    hasSpireIcon() {
+      return Boolean(this.normalizedIcon);
     },
-    hasRemoteIcon() {
-      return Boolean(this.remoteSrc) && !this.imageFailed;
+    spriteClass() {
+      return `item-${this.normalizedIcon}`;
     },
     fallbackText() {
       const text = (this.name || '?').trim();
       return text.slice(0, 2).toUpperCase();
     }
   },
-  watch: {
-    icon() {
-      this.imageFailed = false;
-    }
-  },
-  methods: {
-    handleError() {
-      this.imageFailed = true;
-    }
+  mounted() {
+    ensureSpireSpriteStyles(['itemIcons']);
   }
 };
 </script>
@@ -92,53 +71,64 @@ export default {
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
-    rgba(8, 8, 14, 0.88);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+  border: 1px solid var(--line-brass);
+  background: rgba(13, 13, 11, 0.92);
 }
 
-.item-icon img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  image-rendering: pixelated;
+.spire-item-icon {
+  flex: 0 0 auto;
+  transform-origin: center;
+  image-rendering: auto;
 }
 
 .item-icon.is-fallback {
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--ink-primary);
+  color: var(--brass-bright);
 }
 
 .item-icon--xs {
   width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: 0;
   font-size: 0.58rem;
+}
+
+.item-icon--xs .spire-item-icon {
+  transform: scale(0.6);
 }
 
 .item-icon--sm {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
+  border-radius: 0;
   font-size: 0.68rem;
+}
+
+.item-icon--sm .spire-item-icon {
+  transform: scale(0.8);
 }
 
 .item-icon--md {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 0;
   font-size: 0.8rem;
+}
+
+.item-icon--md .spire-item-icon {
+  transform: scale(1);
 }
 
 .item-icon--lg {
   width: 56px;
   height: 56px;
-  border-radius: 16px;
+  border-radius: 0;
   font-size: 0.95rem;
+}
+
+.item-icon--lg .spire-item-icon {
+  transform: scale(1.2);
 }
 </style>

@@ -19,39 +19,46 @@
                 :class="{ active: sortKey === column.key }"
                 aria-hidden="true"
               >
-                {{ sortKey === column.key ? (sortOrder === 'asc' ? '↑' : '↓') : '↕' }}
+                {{ sortKey === column.key ? (sortOrder === 'asc' ? 'up' : 'down') : '--' }}
               </span>
             </button>
           </th>
-          <th>Action</th>
         </tr>
       </thead>
       <tbody>
         <tr
-          v-for="item in sortedItems"
+          v-for="(item, index) in sortedItems"
           :key="item.item_id"
+          :class="{ selected: item.item_id === selectedItemId }"
           :style="{ '--type-color': getItemTypeColor(item.itemtype) }"
+          @click="$emit('select', item)"
         >
+          <td class="rank-cell">{{ index + 1 }}</td>
           <td class="item-cell">
-            <button type="button" class="item-link" @click="$emit('open', item)">
+            <button type="button" class="item-link" @click.stop="$emit('select', item)">
               <ItemIcon
                 :icon="item.icon"
                 :name="item.name || `Item #${item.item_id}`"
                 size="sm"
                 :title="item.name || `Item #${item.item_id}`"
               />
-              <span class="item-name">{{ item.name || `Item #${item.item_id}` }}</span>
+              <span>
+                <strong>{{ item.name || `Item #${item.item_id}` }}</strong>
+                <em>#{{ item.item_id }}</em>
+              </span>
             </button>
-            <div class="item-id">#{{ item.item_id }}</div>
           </td>
           <td>{{ getItemTypeName(item.itemtype) }}</td>
+          <td class="numeric">{{ item.delay || '-' }}</td>
           <td class="numeric total">{{ formatDPS(item.total_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.mh_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.mh_spell_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.bane_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.bs_dps) }}</td>
+          <td>{{ item.bane_name || item.bane || '-' }}</td>
+          <td class="numeric">{{ item.weight || '-' }}</td>
           <td class="action-cell">
-            <button type="button" class="open-btn" @click="$emit('open', item)">Open</button>
+            <button type="button" class="open-btn" @click.stop="$emit('open', item)">Open</button>
           </td>
         </tr>
       </tbody>
@@ -72,9 +79,13 @@ export default {
     items: {
       type: Array,
       default: () => []
+    },
+    selectedItemId: {
+      type: [Number, String],
+      default: null
     }
   },
-  emits: ['open'],
+  emits: ['select', 'open'],
   data() {
     return {
       sortKey: null,
@@ -84,37 +95,38 @@ export default {
   computed: {
     sortableColumns() {
       return [
+        { key: 'rank', label: '#', type: 'rank' },
         { key: 'name', label: 'Item', type: 'string' },
         { key: 'itemtype', label: 'Type', type: 'type' },
-        { key: 'total_dps', label: 'Total', type: 'number' },
-        { key: 'mh_dps', label: 'MH', type: 'number' },
-        { key: 'mh_spell_dps', label: 'Spell', type: 'number' },
-        { key: 'bane_dps', label: 'Bane', type: 'number' },
-        { key: 'bs_dps', label: 'BS', type: 'number' }
+        { key: 'delay', label: 'Delay', type: 'number' },
+        { key: 'total_dps', label: 'Total DPS', type: 'number' },
+        { key: 'mh_dps', label: 'MH DPS', type: 'number' },
+        { key: 'mh_spell_dps', label: 'Spell DPS', type: 'number' },
+        { key: 'bane_dps', label: 'Bane DPS', type: 'number' },
+        { key: 'bs_dps', label: 'Backstab DPS', type: 'number' },
+        { key: 'bane_name', label: 'Bane', type: 'bane' },
+        { key: 'weight', label: 'Wgt', type: 'number' },
+        { key: 'action', label: 'Action', type: 'action' }
       ];
     },
     sortedItems() {
       const items = [...this.items];
-      if (!this.sortKey) {
-        return items;
-      }
+      if (!this.sortKey || this.sortKey === 'rank') return items;
 
       const column = this.sortableColumns.find((entry) => entry.key === this.sortKey);
-      if (!column) {
-        return items;
-      }
+      if (!column) return items;
 
       const direction = this.sortOrder === 'asc' ? 1 : -1;
-
       items.sort((a, b) => {
         let comparison = 0;
-
         if (column.type === 'number') {
-          const left = Number(a?.[column.key] ?? 0);
-          const right = Number(b?.[column.key] ?? 0);
-          comparison = left - right;
+          comparison = Number(a?.[column.key] ?? 0) - Number(b?.[column.key] ?? 0);
         } else if (column.type === 'type') {
-          comparison = this.getTypeNameForSort(a.itemtype).localeCompare(this.getTypeNameForSort(b.itemtype));
+          comparison = this.getItemTypeName(a.itemtype).localeCompare(this.getItemTypeName(b.itemtype));
+        } else if (column.type === 'bane') {
+          comparison = this.getBaneLabel(a).localeCompare(this.getBaneLabel(b), undefined, { numeric: true });
+        } else if (column.type === 'action') {
+          comparison = Number(a?.item_id ?? 0) - Number(b?.item_id ?? 0);
         } else {
           const left = String(a?.[column.key] || `Item #${a?.item_id || ''}`);
           const right = String(b?.[column.key] || `Item #${b?.item_id || ''}`);
@@ -124,10 +136,8 @@ export default {
         if (comparison === 0) {
           comparison = Number(a?.item_id ?? 0) - Number(b?.item_id ?? 0);
         }
-
         return comparison * direction;
       });
-
       return items;
     }
   },
@@ -135,23 +145,24 @@ export default {
     formatDPS,
     getItemTypeColor,
     getItemTypeName,
+    getBaneLabel(item) {
+      return String(item?.bane_name || item?.bane || '');
+    },
     toggleSort(key) {
+      if (key === 'rank') {
+        this.sortKey = null;
+        return;
+      }
       if (this.sortKey === key) {
         this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
         return;
       }
-
       this.sortKey = key;
       this.sortOrder = 'asc';
     },
     ariaSort(key) {
-      if (this.sortKey !== key) {
-        return 'none';
-      }
+      if (this.sortKey !== key) return 'none';
       return this.sortOrder === 'asc' ? 'ascending' : 'descending';
-    },
-    getTypeNameForSort(itemType) {
-      return this.getItemTypeName(itemType);
     }
   }
 };
@@ -159,42 +170,47 @@ export default {
 
 <style scoped>
 .included-table-wrap {
-  margin-bottom: 24px;
-  overflow-x: auto;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-md);
-  background: linear-gradient(180deg, rgba(20, 20, 36, 0.86), rgba(12, 12, 23, 0.92));
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  background: rgba(18, 18, 16, 0.82);
 }
 
 .included-table {
   width: 100%;
-  min-width: 860px;
+  min-width: 1120px;
   border-collapse: collapse;
+  font-size: 0.84rem;
 }
 
 .included-table th,
 .included-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line-dim);
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-subtle);
   text-align: left;
+}
+
+.included-table th:last-child,
+.included-table td:last-child {
+  border-right: 0;
 }
 
 .included-table thead th {
   position: sticky;
   top: 0;
-  background: rgba(12, 12, 23, 0.96);
-  font-family: var(--font-display);
-  color: var(--ink-muted);
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
   z-index: 1;
+  background: #211f1a;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-weight: 500;
 }
 
 .sort-button {
   all: unset;
   width: 100%;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -202,84 +218,92 @@ export default {
 }
 
 .sort-button:hover {
-  color: var(--gold);
+  color: var(--brass-bright);
 }
 
 .sort-indicator {
-  opacity: 0.45;
-  font-size: 0.8rem;
-  transition: opacity 0.2s ease;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
 }
 
 .sort-indicator.active {
-  opacity: 1;
-  color: var(--gold);
+  color: var(--brass-bright);
 }
 
-.included-table tbody tr:hover {
-  background: rgba(230, 193, 104, 0.03);
+.included-table tbody tr {
+  cursor: pointer;
+  background: rgba(20, 20, 18, 0.68);
+}
+
+.included-table tbody tr:nth-child(even) {
+  background: rgba(27, 26, 22, 0.72);
+}
+
+.included-table tbody tr:hover,
+.included-table tbody tr.selected {
+  background: rgba(197, 157, 92, 0.16);
+}
+
+.rank-cell {
+  width: 44px;
+  color: var(--text-muted);
+  text-align: right;
+  font-family: var(--font-mono);
 }
 
 .item-cell {
-  min-width: 260px;
+  min-width: 230px;
 }
 
 .item-link {
   all: unset;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  width: 100%;
 }
 
-.item-name {
+.item-link strong {
+  display: block;
+  color: var(--text-primary);
   font-family: var(--font-display);
-  color: var(--ink-primary);
-  line-height: 1.25;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
-.item-link:hover .item-name {
-  color: color-mix(in srgb, var(--type-color) 60%, var(--ink-primary));
-}
-
-.item-id {
-  margin-top: 4px;
-  margin-left: 42px;
-  color: var(--ink-muted);
-  font-size: 0.74rem;
+.item-link em {
+  display: block;
+  color: var(--text-muted);
+  font-style: normal;
   font-family: var(--font-mono);
+  font-size: 0.7rem;
+  margin-top: 2px;
 }
 
 .numeric {
   text-align: right;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .total {
-  color: var(--rune-jade);
-  font-weight: 700;
+  color: var(--brass-bright);
+  background: rgba(197, 157, 92, 0.07);
 }
 
 .action-cell {
-  text-align: right;
+  width: 72px;
+  text-align: center;
 }
 
 .open-btn {
-  padding: 7px 12px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--line-gold);
-  background: var(--gold-faint);
-  color: var(--gold);
-  font-family: var(--font-display);
-  font-size: 0.66rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.open-btn:hover {
-  box-shadow: 0 0 8px var(--gold-glow);
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line-brass);
+  border-radius: 2px;
+  color: var(--text-primary);
+  font-size: 0.72rem;
 }
 </style>

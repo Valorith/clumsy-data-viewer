@@ -1,42 +1,54 @@
-import axios from 'axios';
 import config from '../config';
 
-const apiClient = axios.create({
-  baseURL: config.API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
+const REQUEST_TIMEOUT_MS = 10000;
+
+function buildUrl(path, params = {}) {
+  const url = new URL(`${config.API_BASE_URL}${path}`, window.location.origin);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    url.searchParams.set(key, value);
+  });
+
+  return url.toString();
+}
+
+async function requestJson(path, params) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(buildUrl(path, params), {
+      cache: 'no-cache',
+      headers: {
+        Accept: 'application/json'
+      },
+      signal: controller.signal
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(data.error || `Request failed with status ${response.status}`);
+      error.response = { data, status: response.status };
+      throw error;
+    }
+
+    return data;
+  } finally {
+    window.clearTimeout(timeout);
   }
-});
+}
 
 export default {
   async getItems(params = {}) {
-    try {
-      const response = await apiClient.get('/items', { params });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching items:', error);
-      throw error;
-    }
+    return requestJson('/items', params);
   },
 
   async getItem(id) {
-    try {
-      const response = await apiClient.get(`/items/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching item:', error);
-      throw error;
-    }
+    return requestJson(`/items/${id}`);
   },
 
   async getStats() {
-    try {
-      const response = await apiClient.get('/stats');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-      throw error;
-    }
+    return requestJson('/stats');
   }
 };

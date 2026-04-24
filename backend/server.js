@@ -22,9 +22,26 @@ app.use(compression());
 app.use(morgan('combined'));
 app.use(express.json());
 
-const corsOrigins = process.env.CORS_ORIGINS 
-  ? process.env.CORS_ORIGINS.split(',') 
+function expandLocalhostOrigins(origins) {
+  return Array.from(new Set(origins.flatMap((origin) => {
+    const value = origin.trim();
+    if (!value) return [];
+
+    const pairedOrigin = value.includes('://localhost')
+      ? value.replace('://localhost', '://127.0.0.1')
+      : value.includes('://127.0.0.1')
+        ? value.replace('://127.0.0.1', '://localhost')
+        : null;
+
+    return pairedOrigin ? [value, pairedOrigin] : [value];
+  })));
+}
+
+const configuredCorsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
   : config.server.corsOrigins;
+
+const corsOrigins = expandLocalhostOrigins(configuredCorsOrigins);
 
 app.use(cors({
   origin: corsOrigins,
@@ -40,6 +57,7 @@ app.get('/api/items', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = Math.min(parseInt(req.query.pageSize) || config.api.pageSize, config.api.maxPageSize);
     const offset = (page - 1) * pageSize;
+    const responseView = ['chart', 'table'].includes(req.query.view) ? req.query.view : 'table';
     
     const search = req.query.search || '';
     const minMeleeDps = parseNumberParam(req.query.minMeleeDps, 0);
@@ -97,11 +115,21 @@ app.get('/api/items', async (req, res) => {
     
     const [[{ total }]] = await pool.execute(countQuery, queryParams);
     
-    const dataQuery = `
-      SELECT 
+    const chartFields = `
+        ip.item_id,
+        ip.total_dps,
+        ip.mh_dps,
+        ip.mh_spell_dps,
+        ip.bane_dps,
+        ip.bs_dps,
+        i.Name as name
+    `;
+
+    const tableFields = `
         ip.*,
         i.Name as name,
         i.icon,
+        i.idfile,
         i.itemtype,
         i.classes,
         i.races,
@@ -136,6 +164,11 @@ app.get('/api/items', async (req, res) => {
         i.worneffect,
         i.worntype,
         i.focuseffect
+    `;
+
+    const dataQuery = `
+      SELECT
+        ${responseView === 'chart' ? chartFields : tableFields}
       FROM items_parses ip
       LEFT JOIN items i ON ip.item_id = i.id
       WHERE ${whereClause}
@@ -166,9 +199,45 @@ app.get('/api/items/:id', async (req, res) => {
     const itemId = req.params.id;
     
     const query = `
-      SELECT 
+      SELECT
         ip.*,
-        i.*
+        i.Name as name,
+        i.icon,
+        i.idfile,
+        i.itemtype,
+        i.classes,
+        i.races,
+        i.slots,
+        i.damage,
+        i.delay,
+        i.ac,
+        i.hp,
+        i.mana,
+        i.endur,
+        i.astr,
+        i.asta,
+        i.aagi,
+        i.adex,
+        i.acha,
+        i.aint,
+        i.awis,
+        i.heroic_str,
+        i.heroic_sta,
+        i.heroic_agi,
+        i.heroic_dex,
+        i.heroic_cha,
+        i.heroic_int,
+        i.heroic_wis,
+        i.reqlevel,
+        i.reclevel,
+        i.weight,
+        i.price,
+        i.proceffect,
+        i.clickeffect,
+        i.clicktype,
+        i.worneffect,
+        i.worntype,
+        i.focuseffect
       FROM items_parses ip
       LEFT JOIN items i ON ip.item_id = i.id
       WHERE ip.item_id = ?
@@ -231,7 +300,15 @@ if (process.env.NODE_ENV === 'production') {
   const indexFile = path.join(publicDir, 'index.html');
 
   if (fs.existsSync(publicDir) && fs.existsSync(indexFile)) {
-    app.use(express.static(publicDir));
+    app.use(express.static(publicDir, {
+      immutable: true,
+      maxAge: '1y',
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      }
+    }));
 
     app.use((req, res, next) => {
       if (req.method !== 'GET' || req.path.startsWith('/api/')) {
