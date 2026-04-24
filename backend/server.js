@@ -73,9 +73,22 @@ app.get('/api/items', async (req, res) => {
     const sortBy = req.query.sortBy || 'item_id';
     const sortOrder = req.query.sortOrder === 'desc' ? 'DESC' : 'ASC';
     
-    const validSortFields = ['item_id', 'name', 'mh_dps', 'mh_spell_dps', 'oh_spell_dps', 
+    const validSortFields = ['item_id', 'name', 'mh_dps', 'mh_spell_dps', 'oh_spell_dps',
                             'oh_dps', 'mh_oh_dps', 'bs_dps', 'bane_dps', 'total_dps'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'item_id';
+    const derivedOffhandDpsSql = `
+      CASE
+        WHEN ip.oh_dps > 0 THEN ip.oh_dps
+        WHEN ip.mh_oh_dps > ip.mh_dps THEN ip.mh_oh_dps - ip.mh_dps
+        ELSE 0
+      END
+    `;
+    const sortExpressions = {
+      name: 'i.Name',
+      oh_dps: `(${derivedOffhandDpsSql})`,
+      total_dps: `(ip.total_dps + ${derivedOffhandDpsSql})`
+    };
+    const sortExpression = sortExpressions[sortField] || `ip.${sortField}`;
     
     let whereConditions = ['1=1'];
     let queryParams = [];
@@ -175,7 +188,7 @@ app.get('/api/items', async (req, res) => {
       FROM items_parses ip
       LEFT JOIN items i ON ip.item_id = i.id
       WHERE ${whereClause}
-      ORDER BY ${sortField === 'name' ? 'i.Name' : 'ip.' + sortField} ${sortOrder}
+      ORDER BY ${sortExpression} ${sortOrder}
       LIMIT ? OFFSET ?
     `;
     

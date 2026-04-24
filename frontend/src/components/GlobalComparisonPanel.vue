@@ -73,6 +73,8 @@ import { formatDPS, getOffhandDps } from '../utils/formatters';
 
 const MELEE_SEGMENT_KEYS = ['main', 'offhand'];
 const DEFAULT_SEGMENT_KEYS = ['main', 'spell', 'bane', 'backstab'];
+const MAIN_HAND_KEY = 'main';
+const OFFHAND_KEY = 'offhand';
 
 export default {
   name: 'GlobalComparisonPanel',
@@ -101,10 +103,13 @@ export default {
       return [
         { key: 'main', label: 'MH', field: 'mh_dps' },
         { key: 'offhand', label: 'OH', value: getOffhandDps },
-        { key: 'spell', label: 'Spell', field: 'mh_spell_dps' },
+        { key: 'spell', label: 'Spell', fieldsByHand: { main: 'mh_spell_dps', offhand: 'oh_spell_dps' } },
         { key: 'bane', label: 'Bane', field: 'bane_dps' },
         { key: 'backstab', label: 'BS', field: 'bs_dps' }
       ];
+    },
+    activeHandKey() {
+      return this.isSegmentActive(OFFHAND_KEY) ? OFFHAND_KEY : MAIN_HAND_KEY;
     },
     activeSegments() {
       return this.segments.filter((segment) => this.isSegmentActive(segment.key));
@@ -156,12 +161,25 @@ export default {
     getValue(item) {
       return this.activeSegments.reduce((sum, segment) => sum + this.getScaledSegmentValue(item, segment), 0);
     },
-    getTotalValue(item) {
+    getStoredTotalValue(item) {
       return Math.max(0, Number(item?.total_dps || 0));
+    },
+    getTotalValue(item) {
+      const rawTotal = this.segmentTotal(item);
+      const storedTotal = this.getStoredTotalValue(item);
+
+      if (this.activeHandKey === MAIN_HAND_KEY) {
+        return storedTotal || rawTotal;
+      }
+
+      return rawTotal;
     },
     getSegmentValue(item, segment) {
       if (typeof segment.value === 'function') {
         return Math.max(0, Number(segment.value(item) || 0));
+      }
+      if (segment.fieldsByHand) {
+        return Math.max(0, Number(item?.[segment.fieldsByHand[this.activeHandKey]] || 0));
       }
       return Math.max(0, Number(item?.[segment.field] || 0));
     },
@@ -221,13 +239,18 @@ export default {
       };
     },
     getBarTitle(item, activeTotal) {
+      const totalLabel = this.activeHandKey === OFFHAND_KEY ? 'Recalculated OH total' : 'Stored MH total';
       const lines = [
         `${item.name || `Item #${item.item_id}`}: ${formatDPS(activeTotal)} active DPS`,
-        `Original total: ${formatDPS(this.getTotalValue(item))}`,
+        `${totalLabel}: ${formatDPS(this.getTotalValue(item))}`,
         ...this.activeSegments.map((segment) => (
           `${segment.label} contribution: ${formatDPS(this.getScaledSegmentValue(item, segment))}`
         ))
       ];
+
+      if (this.activeHandKey === OFFHAND_KEY && this.getStoredTotalValue(item) > 0) {
+        lines.splice(2, 0, `Stored MH total: ${formatDPS(this.getStoredTotalValue(item))}`);
+      }
 
       return lines.join('\n');
     }
