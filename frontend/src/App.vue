@@ -201,7 +201,6 @@
             :items="items"
             :selected-item-id="selectedItem?.item_id"
             @select="selectItem"
-            @open="selectItem"
           />
           <div v-else class="state-panel">
             <strong>No rows available.</strong>

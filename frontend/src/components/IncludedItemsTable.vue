@@ -55,9 +55,6 @@
           <td class="numeric">{{ formatDPS(item.mh_spell_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.bane_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.bs_dps) }}</td>
-          <td class="action-cell">
-            <button type="button" class="open-btn" @click.stop="$emit('open', item)">Open</button>
-          </td>
         </tr>
       </tbody>
     </table>
@@ -83,7 +80,7 @@ export default {
       default: null
     }
   },
-  emits: ['select', 'open'],
+  emits: ['select'],
   data() {
     return {
       sortKey: null,
@@ -101,8 +98,7 @@ export default {
         { key: 'mh_dps', label: 'MH DPS', type: 'number' },
         { key: 'mh_spell_dps', label: 'Spell DPS', type: 'number' },
         { key: 'bane_dps', label: 'Bane DPS', type: 'number' },
-        { key: 'bs_dps', label: 'Backstab DPS', type: 'number' },
-        { key: 'action', label: 'Action', type: 'action' }
+        { key: 'bs_dps', label: 'Backstab DPS', type: 'number' }
       ];
     },
     sortedItems() {
@@ -119,8 +115,6 @@ export default {
           comparison = Number(a?.[column.key] ?? 0) - Number(b?.[column.key] ?? 0);
         } else if (column.type === 'type') {
           comparison = this.getItemTypeName(a.itemtype).localeCompare(this.getItemTypeName(b.itemtype));
-        } else if (column.type === 'action') {
-          comparison = Number(a?.item_id ?? 0) - Number(b?.item_id ?? 0);
         } else {
           const left = String(a?.[column.key] || `Item #${a?.item_id || ''}`);
           const right = String(b?.[column.key] || `Item #${b?.item_id || ''}`);
@@ -284,17 +278,4 @@ export default {
   background: rgba(197, 157, 92, 0.07);
 }
 
-.action-cell {
-  width: 72px;
-  text-align: center;
-}
-
-.open-btn {
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--line-brass);
-  border-radius: 2px;
-  color: var(--text-primary);
-  font-size: 0.72rem;
-}
 </style>
