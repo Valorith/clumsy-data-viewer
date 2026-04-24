@@ -55,8 +55,6 @@
           <td class="numeric">{{ formatDPS(item.mh_spell_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.bane_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.bs_dps) }}</td>
-          <td>{{ item.bane_name || item.bane || '-' }}</td>
-          <td class="numeric">{{ item.weight || '-' }}</td>
           <td class="action-cell">
             <button type="button" class="open-btn" @click.stop="$emit('open', item)">Open</button>
           </td>
@@ -104,8 +102,6 @@ export default {
         { key: 'mh_spell_dps', label: 'Spell DPS', type: 'number' },
         { key: 'bane_dps', label: 'Bane DPS', type: 'number' },
         { key: 'bs_dps', label: 'Backstab DPS', type: 'number' },
-        { key: 'bane_name', label: 'Bane', type: 'bane' },
-        { key: 'weight', label: 'Wgt', type: 'number' },
         { key: 'action', label: 'Action', type: 'action' }
       ];
     },
@@ -123,8 +119,6 @@ export default {
           comparison = Number(a?.[column.key] ?? 0) - Number(b?.[column.key] ?? 0);
         } else if (column.type === 'type') {
           comparison = this.getItemTypeName(a.itemtype).localeCompare(this.getItemTypeName(b.itemtype));
-        } else if (column.type === 'bane') {
-          comparison = this.getBaneLabel(a).localeCompare(this.getBaneLabel(b), undefined, { numeric: true });
         } else if (column.type === 'action') {
           comparison = Number(a?.item_id ?? 0) - Number(b?.item_id ?? 0);
         } else {
@@ -145,9 +139,6 @@ export default {
     formatDPS,
     getItemTypeColor,
     getItemTypeName,
-    getBaneLabel(item) {
-      return String(item?.bane_name || item?.bane || '');
-    },
     toggleSort(key) {
       if (key === 'rank') {
         this.sortKey = null;
