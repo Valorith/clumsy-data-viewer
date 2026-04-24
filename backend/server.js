@@ -120,6 +120,9 @@ app.get('/api/items', async (req, res) => {
         ip.total_dps,
         ip.mh_dps,
         ip.mh_spell_dps,
+        ip.oh_dps,
+        ip.oh_spell_dps,
+        ip.mh_oh_dps,
         ip.bane_dps,
         ip.bs_dps,
         i.Name as name

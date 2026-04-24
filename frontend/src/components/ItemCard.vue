@@ -43,13 +43,17 @@
 
       <div class="primary-stat">
         <div class="primary-stat-label">Total DPS</div>
-        <div class="primary-stat-value">{{ formatDPS(item.total_dps) }}</div>
+        <div class="primary-stat-value">{{ formatDPS(getComparableTotalDps(item)) }}</div>
       </div>
 
       <div class="stat-grid">
         <div class="stat-chip">
           <span class="stat-chip-label">MH</span>
           <span class="stat-chip-value">{{ formatDPS(item.mh_dps) }}</span>
+        </div>
+        <div v-if="getOffhandDps(item) > 0" class="stat-chip">
+          <span class="stat-chip-label">OH</span>
+          <span class="stat-chip-value">{{ formatDPS(getOffhandDps(item)) }}</span>
         </div>
         <div class="stat-chip">
           <span class="stat-chip-label">Spell</span>
@@ -152,7 +156,7 @@
 <script>
 import config from '../config';
 import ItemIcon from './ItemIcon.vue';
-import { formatDPS, getClassNames, getItemTypeColor, getItemTypeName } from '../utils/formatters';
+import { formatDPS, getClassNames, getComparableTotalDps, getItemTypeColor, getItemTypeName, getOffhandDps } from '../utils/formatters';
 
 const SPECTRUM_DEFS = [
   { key: 'mh', field: 'mh_dps', label: 'Main Hand', short: 'MH', color: '#c57f7c' },
@@ -230,6 +234,8 @@ export default {
   },
   methods: {
     formatDPS,
+    getComparableTotalDps,
+    getOffhandDps,
     getTypeName() {
       return getItemTypeName(this.item.itemtype);
     },

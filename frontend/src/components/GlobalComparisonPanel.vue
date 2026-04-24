@@ -7,8 +7,20 @@
         <p v-else>{{ loading ? 'Loading comparison...' : 'No comparison rows available' }}</p>
       </div>
       <div class="comparison-legend" aria-label="DPS component legend">
+        <div class="legend-segment-group" role="group" aria-label="Melee DPS source">
+          <button
+            v-for="segment in meleeSegments"
+            :key="segment.key"
+            type="button"
+            :class="['legend-key', 'melee-option', `segment-${segment.key}`]"
+            :aria-pressed="isSegmentActive(segment.key)"
+            @click="toggleSegment(segment.key)"
+          >
+            {{ segment.label }}
+          </button>
+        </div>
         <button
-          v-for="segment in segments"
+          v-for="segment in independentSegments"
           :key="segment.key"
           type="button"
           :class="['legend-key', `segment-${segment.key}`]"
@@ -57,8 +69,9 @@
 </template>
 
 <script>
-import { formatDPS } from '../utils/formatters';
+import { formatDPS, getOffhandDps } from '../utils/formatters';
 
+const MELEE_SEGMENT_KEYS = ['main', 'offhand'];
 const DEFAULT_SEGMENT_KEYS = ['main', 'spell', 'bane', 'backstab'];
 
 export default {
@@ -87,13 +100,25 @@ export default {
     segments() {
       return [
         { key: 'main', label: 'MH', field: 'mh_dps' },
+        { key: 'offhand', label: 'OH', value: getOffhandDps },
         { key: 'spell', label: 'Spell', field: 'mh_spell_dps' },
         { key: 'bane', label: 'Bane', field: 'bane_dps' },
-        { key: 'backstab', label: 'Backstab', field: 'bs_dps' }
+        { key: 'backstab', label: 'BS', field: 'bs_dps' }
       ];
     },
     activeSegments() {
       return this.segments.filter((segment) => this.isSegmentActive(segment.key));
+    },
+    meleeSegments() {
+      return this.segments.filter((segment) => MELEE_SEGMENT_KEYS.includes(segment.key));
+    },
+    independentSegments() {
+      return this.segments.filter((segment) => !MELEE_SEGMENT_KEYS.includes(segment.key));
+    },
+    comparisonSegments() {
+      return this.segments.filter((segment) => (
+        this.isSegmentActive(segment.key) || !MELEE_SEGMENT_KEYS.includes(segment.key)
+      ));
     },
     displayedItems() {
       return [...this.items]
@@ -135,9 +160,12 @@ export default {
       return Math.max(0, Number(item?.total_dps || 0));
     },
     getSegmentValue(item, segment) {
+      if (typeof segment.value === 'function') {
+        return Math.max(0, Number(segment.value(item) || 0));
+      }
       return Math.max(0, Number(item?.[segment.field] || 0));
     },
-    segmentTotal(item, segments = this.segments) {
+    segmentTotal(item, segments = this.comparisonSegments) {
       return segments.reduce((sum, segment) => sum + this.getSegmentValue(item, segment), 0);
     },
     getScaledSegmentValue(item, segment) {
@@ -149,12 +177,22 @@ export default {
         return rawValue * (targetTotal / rawTotal);
       }
 
-      return segment.key === 'main' ? targetTotal : 0;
+      return MELEE_SEGMENT_KEYS.includes(segment.key) ? targetTotal : 0;
     },
     isSegmentActive(key) {
       return this.activeSegmentKeys.includes(key);
     },
     toggleSegment(key) {
+      if (MELEE_SEGMENT_KEYS.includes(key)) {
+        if (this.isSegmentActive(key)) return;
+
+        this.activeSegmentKeys = [
+          ...this.activeSegmentKeys.filter((activeKey) => !MELEE_SEGMENT_KEYS.includes(activeKey)),
+          key
+        ];
+        return;
+      }
+
       this.activeSegmentKeys = this.isSegmentActive(key)
         ? this.activeSegmentKeys.filter((activeKey) => activeKey !== key)
         : [...this.activeSegmentKeys, key];
@@ -186,10 +224,9 @@ export default {
       const lines = [
         `${item.name || `Item #${item.item_id}`}: ${formatDPS(activeTotal)} active DPS`,
         `Original total: ${formatDPS(this.getTotalValue(item))}`,
-        `MH contribution: ${formatDPS(this.getScaledSegmentValue(item, this.segments[0]))}`,
-        `Spell contribution: ${formatDPS(this.getScaledSegmentValue(item, this.segments[1]))}`,
-        `Bane contribution: ${formatDPS(this.getScaledSegmentValue(item, this.segments[2]))}`,
-        `Backstab contribution: ${formatDPS(this.getScaledSegmentValue(item, this.segments[3]))}`
+        ...this.activeSegments.map((segment) => (
+          `${segment.label} contribution: ${formatDPS(this.getScaledSegmentValue(item, segment))}`
+        ))
       ];
 
       return lines.join('\n');
@@ -224,8 +261,15 @@ export default {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 7px;
   max-width: 320px;
+}
+
+.legend-segment-group {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid rgba(197, 157, 92, 0.42);
+  background: rgba(197, 157, 92, 0.055);
 }
 
 .legend-key {
@@ -242,6 +286,20 @@ export default {
   transition: color 0.16s ease, opacity 0.16s ease;
 }
 
+.legend-key.melee-option {
+  min-width: 38px;
+  justify-content: center;
+  padding: 2px 6px;
+}
+
+.legend-key.melee-option + .legend-key.melee-option {
+  border-left: 1px solid rgba(197, 157, 92, 0.24);
+}
+
+.legend-key.melee-option[aria-pressed='true'] {
+  background: rgba(197, 157, 92, 0.14);
+}
+
 .legend-key:hover,
 .legend-key[aria-pressed='true'] {
   color: var(--text-primary);
@@ -250,6 +308,10 @@ export default {
 .legend-key[aria-pressed='false'] {
   color: var(--text-faint);
   opacity: 0.52;
+}
+
+.legend-key.melee-option[aria-pressed='false'] {
+  opacity: 0.72;
 }
 
 .legend-key::before {
@@ -325,6 +387,11 @@ export default {
 .bar-segment.segment-main,
 .legend-key.segment-main::before {
   background: #d78269;
+}
+
+.bar-segment.segment-offhand,
+.legend-key.segment-offhand::before {
+  background: #b48adf;
 }
 
 .bar-segment.segment-spell,

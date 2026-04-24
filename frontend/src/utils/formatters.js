@@ -6,6 +6,24 @@ export function formatNumber(value) {
   return value ? value.toLocaleString() : '0';
 }
 
+function safeDps(value) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+export function getOffhandDps(item) {
+  const directOffhand = safeDps(item?.oh_dps);
+  if (directOffhand > 0) return directOffhand;
+
+  const combinedHands = safeDps(item?.mh_oh_dps);
+  const mainHand = safeDps(item?.mh_dps);
+  return Math.max(0, combinedHands - mainHand);
+}
+
+export function getComparableTotalDps(item) {
+  return safeDps(item?.total_dps) + getOffhandDps(item);
+}
+
 export function getClassNames(classBitMask) {
   const classes = [];
   const classMap = {

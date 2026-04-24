@@ -102,10 +102,13 @@
               <option value="item_id">Item ID</option>
               <option value="name">Name</option>
               <option value="total_dps">Total DPS</option>
+              <option value="mh_oh_dps">Main + Offhand DPS</option>
               <option value="mh_dps">Main Hand DPS</option>
+              <option value="oh_dps">Offhand DPS</option>
               <option value="mh_spell_dps">Spell DPS</option>
+              <option value="oh_spell_dps">Offhand Spell DPS</option>
               <option value="bane_dps">Bane DPS</option>
-              <option value="bs_dps">Backstab DPS</option>
+              <option value="bs_dps">BS DPS</option>
             </select>
           </label>
           <label>
@@ -283,11 +286,15 @@
             <dl class="metric-list">
               <div class="metric-row total">
                 <dt>Total DPS</dt>
-                <dd>{{ formatDPS(selectedItem.total_dps) }}</dd>
+                <dd>{{ formatDPS(getComparableTotalDps(selectedItem)) }}</dd>
               </div>
               <div class="metric-row danger">
                 <dt>MH DPS</dt>
                 <dd>{{ formatDPS(selectedItem.mh_dps) }}</dd>
+              </div>
+              <div class="metric-row warning">
+                <dt>Offhand DPS</dt>
+                <dd>{{ formatDPS(getOffhandDps(selectedItem)) }}</dd>
               </div>
               <div class="metric-row info">
                 <dt>Spell DPS</dt>
@@ -359,7 +366,9 @@ import { normalizeModelId } from './utils/spire-assets';
 import {
   formatDPS,
   formatNumber,
+  getComparableTotalDps,
   getClassNames,
+  getOffhandDps,
   getItemTypeName,
   getSlotNames
 } from './utils/formatters';
@@ -447,15 +456,16 @@ export default {
     averageTotalDps() {
       const source = this.allItemsForComparison.length ? this.allItemsForComparison : this.items;
       if (!source.length) return 0;
-      const total = source.reduce((sum, item) => sum + Number(item.total_dps || 0), 0);
+      const total = source.reduce((sum, item) => sum + getComparableTotalDps(item), 0);
       return total / source.length;
     },
     selectedDeltas() {
       if (!this.selectedItem) return [];
       const avg = this.averageTotalDps || 0;
       return [
-        { label: 'Total DPS', value: Number(this.selectedItem.total_dps || 0) - avg, base: avg },
+        { label: 'Total DPS', value: getComparableTotalDps(this.selectedItem) - avg, base: avg },
         { label: 'MH DPS', value: Number(this.selectedItem.mh_dps || 0) - avg * 0.72, base: avg * 0.72 },
+        { label: 'Offhand DPS', value: getOffhandDps(this.selectedItem) - avg * 0.28, base: avg * 0.28 },
         { label: 'Spell DPS', value: Number(this.selectedItem.mh_spell_dps || 0) - avg * 0.12, base: avg * 0.12 },
         { label: 'Bane DPS', value: Number(this.selectedItem.bane_dps || 0) - avg * 0.1, base: avg * 0.1 },
         { label: 'Backstab DPS', value: Number(this.selectedItem.bs_dps || 0) - avg * 0.28, base: avg * 0.28 }
@@ -472,7 +482,7 @@ export default {
     },
     selectedBaneDetails() {
       const baneDps = Number(this.selectedItem?.bane_dps || 0);
-      const totalDps = Number(this.selectedItem?.total_dps || 0);
+      const totalDps = getComparableTotalDps(this.selectedItem);
       const baseDps = Math.max(0, totalDps - baneDps);
 
       return {
@@ -503,7 +513,9 @@ export default {
   methods: {
     formatDPS,
     formatNumber,
+    getComparableTotalDps,
     getClassNames,
+    getOffhandDps,
     getItemTypeName,
     getSlotNames,
     typeCount(typeId) {
@@ -678,7 +690,11 @@ export default {
       }
 
       try {
-        const response = await itemsApi.getItems(this.buildParams(200, 1, { view: 'chart' }));
+        const response = await itemsApi.getItems(this.buildParams(200, 1, {
+          view: 'chart',
+          sortBy: 'mh_dps',
+          sortOrder: 'desc'
+        }));
         if (this.latestComparisonRequestId === requestId) {
           this.allItemsForComparison = response.items || [];
         }
@@ -726,14 +742,18 @@ export default {
         this.showToast('No rows to export');
         return;
       }
-      const header = ['Item ID', 'Name', 'Type', 'Total DPS', 'MH DPS', 'Spell DPS', 'Bane DPS', 'Backstab DPS'];
+      const header = ['Item ID', 'Name', 'Type', 'DMG', 'Delay', 'Total DPS', 'MH DPS', 'OH DPS', 'Spell DPS', 'Offhand Spell DPS', 'Bane DPS', 'BS DPS'];
       const rows = this.items.map((item) => [
         item.item_id,
         item.name || `Item #${item.item_id}`,
         this.getItemTypeName(item.itemtype),
-        this.formatDPS(item.total_dps),
+        item.damage || '',
+        item.delay || '',
+        this.formatDPS(getComparableTotalDps(item)),
         this.formatDPS(item.mh_dps),
+        this.formatDPS(getOffhandDps(item)),
         this.formatDPS(item.mh_spell_dps),
+        this.formatDPS(item.oh_spell_dps),
         this.formatDPS(item.bane_dps),
         this.formatDPS(item.bs_dps)
       ]);
@@ -987,12 +1007,17 @@ export default {
 }
 
 input[type='checkbox'] {
+  -webkit-appearance: none;
   appearance: none;
   width: 16px;
   height: 16px;
+  margin: 0;
+  padding: 0;
   border: 1px solid var(--line-brass);
+  border-radius: 2px;
   background: transparent;
   position: relative;
+  place-self: center;
 }
 
 input[type='checkbox']:checked {

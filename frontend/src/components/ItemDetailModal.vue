@@ -270,7 +270,7 @@
 
 <script>
 import ItemIcon from './ItemIcon.vue'
-import { formatDPS, getClassNames } from '../utils/formatters'
+import { formatDPS, getClassNames, getComparableTotalDps } from '../utils/formatters'
 
 const MAIN_HAND_COMPONENTS = [
   {
@@ -383,7 +383,7 @@ export default {
       };
     },
     displayTotalDps() {
-      return this.componentMetrics.main.targetTotal;
+      return getComparableTotalDps(this.item);
     },
     mainHandDisplayComponents() {
       return this.mainHandComponents.map(component => {
@@ -411,7 +411,7 @@ export default {
     peerEntries() {
       return this.similarItems.map((peerItem) => {
         const metrics = this.computeItemMetrics(peerItem, this.mainHandComponents, { useOffHandLogic: false });
-        const total = Number(metrics.targetTotal ?? metrics.scaled?.total ?? 0);
+        const total = getComparableTotalDps(peerItem);
         const segments = this.mainHandComponents
           .map((component) => {
             const value = Number(metrics.scaled?.[component.key] ?? 0);
@@ -503,6 +503,7 @@ export default {
   },
   methods: {
     formatDPS,
+    getComparableTotalDps,
     getClassNames,
     formatSignedDPS(value) {
       const safe = Number(value ?? 0);
@@ -646,21 +647,21 @@ export default {
       this.$emit('close');
     },
     getSimilarItems() {
-      if (!this.item || !this.item.total_dps) return [];
-      const targetDps = this.item.total_dps;
+      const targetDps = getComparableTotalDps(this.item);
+      if (!this.item || !targetDps) return [];
       const minDps = targetDps * 0.5;
       const maxDps = targetDps * 1.5;
       
       let similar = this.allItems.filter(i => 
         (i.itemtype === this.item.itemtype || 
-         (i.total_dps >= minDps && i.total_dps <= maxDps))
+         (getComparableTotalDps(i) >= minDps && getComparableTotalDps(i) <= maxDps))
       );
       
-      similar = similar.sort((a, b) => a.total_dps - b.total_dps);
+      similar = similar.sort((a, b) => getComparableTotalDps(a) - getComparableTotalDps(b));
       
       if (!similar.find(i => i.item_id === this.item.item_id)) {
         similar.push(this.item);
-        similar.sort((a, b) => a.total_dps - b.total_dps);
+        similar.sort((a, b) => getComparableTotalDps(a) - getComparableTotalDps(b));
       }
       
       if (similar.length > 10) {
@@ -673,8 +674,9 @@ export default {
       return similar;
     },
     getPercentile() {
-      if (!this.allItems.length || !this.item || !this.item.total_dps) return 0;
-      const lowerCount = this.allItems.filter(i => i.total_dps < this.item.total_dps).length;
+      const targetDps = getComparableTotalDps(this.item);
+      if (!this.allItems.length || !this.item || !targetDps) return 0;
+      const lowerCount = this.allItems.filter(i => getComparableTotalDps(i) < targetDps).length;
       return Math.round((lowerCount / this.allItems.length) * 100);
     }
   },

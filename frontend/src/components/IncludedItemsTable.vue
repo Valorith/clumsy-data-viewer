@@ -49,9 +49,11 @@
             </button>
           </td>
           <td>{{ getItemTypeName(item.itemtype) }}</td>
+          <td class="numeric">{{ item.damage || '-' }}</td>
           <td class="numeric">{{ item.delay || '-' }}</td>
-          <td class="numeric total">{{ formatDPS(item.total_dps) }}</td>
+          <td class="numeric total">{{ formatDPS(getComparableTotalDps(item)) }}</td>
           <td class="numeric">{{ formatDPS(item.mh_dps) }}</td>
+          <td class="numeric">{{ formatDPS(getOffhandDps(item)) }}</td>
           <td class="numeric">{{ formatDPS(item.mh_spell_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.bane_dps) }}</td>
           <td class="numeric">{{ formatDPS(item.bs_dps) }}</td>
@@ -63,7 +65,7 @@
 
 <script>
 import ItemIcon from './ItemIcon.vue';
-import { formatDPS, getItemTypeColor, getItemTypeName } from '../utils/formatters';
+import { formatDPS, getComparableTotalDps, getItemTypeColor, getItemTypeName, getOffhandDps } from '../utils/formatters';
 
 export default {
   name: 'IncludedItemsTable',
@@ -93,12 +95,14 @@ export default {
         { key: 'rank', label: '#', type: 'rank' },
         { key: 'name', label: 'Item', type: 'string' },
         { key: 'itemtype', label: 'Type', type: 'type' },
+        { key: 'damage', label: 'DMG', type: 'number' },
         { key: 'delay', label: 'Delay', type: 'number' },
         { key: 'total_dps', label: 'Total DPS', type: 'number' },
         { key: 'mh_dps', label: 'MH DPS', type: 'number' },
+        { key: 'oh_dps', label: 'OH DPS', type: 'number', value: getOffhandDps },
         { key: 'mh_spell_dps', label: 'Spell DPS', type: 'number' },
         { key: 'bane_dps', label: 'Bane DPS', type: 'number' },
-        { key: 'bs_dps', label: 'Backstab DPS', type: 'number' }
+        { key: 'bs_dps', label: 'BS DPS', type: 'number' }
       ];
     },
     sortedItems() {
@@ -112,7 +116,9 @@ export default {
       items.sort((a, b) => {
         let comparison = 0;
         if (column.type === 'number') {
-          comparison = Number(a?.[column.key] ?? 0) - Number(b?.[column.key] ?? 0);
+          const leftValue = column.key === 'total_dps' ? getComparableTotalDps(a) : Number(column.value?.(a) ?? a?.[column.key] ?? 0);
+          const rightValue = column.key === 'total_dps' ? getComparableTotalDps(b) : Number(column.value?.(b) ?? b?.[column.key] ?? 0);
+          comparison = leftValue - rightValue;
         } else if (column.type === 'type') {
           comparison = this.getItemTypeName(a.itemtype).localeCompare(this.getItemTypeName(b.itemtype));
         } else {
@@ -131,8 +137,10 @@ export default {
   },
   methods: {
     formatDPS,
+    getComparableTotalDps,
     getItemTypeColor,
     getItemTypeName,
+    getOffhandDps,
     toggleSort(key) {
       if (key === 'rank') {
         this.sortKey = null;
