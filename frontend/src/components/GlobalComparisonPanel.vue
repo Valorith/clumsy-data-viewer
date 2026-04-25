@@ -36,7 +36,7 @@
       </div>
     </div>
 
-    <div class="chart-frame">
+    <div ref="chartFrame" class="chart-frame">
       <div class="y-axis">
         <span>{{ formatDPS(maxValue) }}</span>
         <span>{{ formatDPS(maxValue / 2) }}</span>
@@ -50,10 +50,10 @@
           :class="['dps-bar', { selected: bar.item.item_id === selectedItemId }]"
           :style="{ height: bar.height }"
           :aria-label="bar.title"
-          @focus="showTooltip(index)"
+          @focus="showTooltip(index, $event)"
           @blur="hideTooltip"
           @click="$emit('select', bar.item)"
-          @pointerenter="showTooltip(index)"
+          @pointerenter="showTooltip(index, $event)"
           @pointerleave="hideTooltip"
         >
           <span class="sr-only">{{ index + 1 }}</span>
@@ -65,15 +65,6 @@
             aria-hidden="true"
           ></span>
         </button>
-        <div
-          v-if="activeTooltip"
-          :class="['bar-tooltip', activeTooltip.edgeClass]"
-          :style="{ left: activeTooltip.left }"
-          role="tooltip"
-        >
-          <strong>{{ activeTooltip.heading }}</strong>
-          <span v-for="line in activeTooltip.details" :key="line">{{ line }}</span>
-        </div>
         <div v-if="!displayedBars.length" class="empty-chart">
           {{ loading ? 'Loading...' : 'No items match the current filters.' }}
         </div>
@@ -83,6 +74,18 @@
       </div>
     </div>
   </section>
+
+  <Teleport to="body">
+    <div
+      v-if="activeTooltip"
+      :class="['bar-tooltip', activeTooltip.edgeClass, activeTooltip.placementClass]"
+      :style="activeTooltip.style"
+      role="tooltip"
+    >
+      <strong>{{ activeTooltip.heading }}</strong>
+      <span v-for="line in activeTooltip.details" :key="line">{{ line }}</span>
+    </div>
+  </Teleport>
 </template>
 
 <script>
@@ -115,7 +118,12 @@ export default {
   emits: ['select', 'update:activeSegmentKeys'],
   data() {
     return {
-      activeTooltipIndex: null
+      activeTooltipIndex: null,
+      tooltipPlacement: 'below',
+      tooltipPosition: {
+        left: '0px',
+        top: '0px'
+      }
     };
   },
   computed: {
@@ -178,22 +186,21 @@ export default {
 
       const lines = bar.title.split('\n');
       const barCount = this.displayedBars.length;
-      const position = barCount > 0
-        ? ((this.activeTooltipIndex + 0.5) / barCount) * 100
-        : 50;
 
       return {
         heading: lines[0],
         details: lines.slice(1),
-        left: `${position}%`,
-        edgeClass: this.getTooltipEdgeClass(this.activeTooltipIndex, barCount)
+        style: this.tooltipPosition,
+        edgeClass: this.getTooltipEdgeClass(this.activeTooltipIndex, barCount),
+        placementClass: `placement-${this.tooltipPlacement}`
       };
     }
   },
   methods: {
     formatDPS,
-    showTooltip(index) {
+    showTooltip(index, event) {
       this.activeTooltipIndex = index;
+      this.updateTooltipPlacement(event?.currentTarget);
     },
     hideTooltip() {
       this.activeTooltipIndex = null;
@@ -203,6 +210,30 @@ export default {
       if (index === 0) return 'edge-start';
       if (index === count - 1) return 'edge-end';
       return '';
+    },
+    updateTooltipPlacement(target) {
+      if (typeof window === 'undefined') return;
+      this.$nextTick(() => {
+        const chartRect = this.$refs.chartFrame?.getBoundingClientRect?.();
+        const targetRect = target?.getBoundingClientRect?.();
+        if (!chartRect || !targetRect) return;
+
+        const estimatedTooltipHeight = 108;
+        const edgeGap = 6;
+        const spaceAbove = chartRect.top;
+        const spaceBelow = window.innerHeight - chartRect.bottom;
+        const placement = spaceBelow >= estimatedTooltipHeight + edgeGap
+          ? 'below'
+          : spaceAbove >= estimatedTooltipHeight + edgeGap
+            ? 'above'
+            : spaceBelow >= spaceAbove ? 'below' : 'above';
+
+        this.tooltipPlacement = placement;
+        this.tooltipPosition = {
+          left: `${targetRect.left + targetRect.width / 2}px`,
+          top: `${placement === 'below' ? chartRect.bottom + edgeGap : chartRect.top - edgeGap}px`
+        };
+      });
     },
     getValue(item) {
       return getActiveDps(item, this.activeSegmentKeys);
@@ -539,13 +570,12 @@ export default {
 }
 
 .bar-tooltip {
-  position: absolute;
-  top: 8px;
-  z-index: 5;
+  position: fixed;
+  z-index: 2147483000;
   display: grid;
   gap: 3px;
   min-width: 190px;
-  max-width: min(270px, calc(100% - 16px));
+  max-width: min(270px, calc(100vw - 16px));
   padding: 8px 10px;
   border: 1px solid rgba(214, 194, 153, 0.42);
   background: rgba(18, 18, 16, 0.96);
@@ -557,12 +587,26 @@ export default {
   transform: translateX(-50%);
 }
 
-.bar-tooltip.edge-start {
+.bar-tooltip.placement-above {
+  transform: translate(-50%, -100%);
+}
+
+.bar-tooltip.edge-start,
+.bar-tooltip.placement-above.edge-start {
   transform: translateX(0);
 }
 
-.bar-tooltip.edge-end {
+.bar-tooltip.placement-above.edge-start {
+  transform: translate(0, -100%);
+}
+
+.bar-tooltip.edge-end,
+.bar-tooltip.placement-above.edge-end {
   transform: translateX(-100%);
+}
+
+.bar-tooltip.placement-above.edge-end {
+  transform: translate(-100%, -100%);
 }
 
 .bar-tooltip strong {
