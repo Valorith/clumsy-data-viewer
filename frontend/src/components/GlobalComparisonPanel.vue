@@ -326,8 +326,8 @@ export default {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  gap: 4px;
-  min-height: 25px;
+  gap: 5px;
+  min-height: 27px;
   padding: 4px 6px;
   border: 1px solid rgba(197, 157, 92, 0.34);
   border-radius: 0;
@@ -389,10 +389,12 @@ export default {
 }
 
 .legend-swatch {
-  width: 8px;
-  height: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.34);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  width: 13px;
+  height: 13px;
+  border: 1px solid rgba(0, 0, 0, 0.42);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(214, 194, 153, 0.14);
 }
 
 .legend-label {

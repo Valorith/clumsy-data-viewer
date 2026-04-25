@@ -390,7 +390,7 @@ export default {
       loading: false,
       error: null,
       currentPage: 1,
-      pageSize: 50,
+      pageSize: 25,
       totalItems: 0,
       totalPages: 0,
       selectedItemTypes: null,
