@@ -353,7 +353,6 @@ import {
   getActiveDpsComponentValue,
   getComparableTotalDps,
   getClassNames,
-  getOffhandDps,
   getItemTypeName,
   getSlotNames
 } from './utils/formatters';
@@ -491,7 +490,7 @@ export default {
       return this.activeDpsSourceKeys.includes('offhand') ? 'offhand' : 'main';
     },
     activeHandLabel() {
-      return this.activeHandKey === 'offhand' ? 'Offhand DPS' : 'MH DPS';
+      return this.activeHandKey === 'offhand' ? 'OH Melee DPS' : 'MH Melee DPS';
     },
     selectedMetricRows() {
       if (!this.selectedItem) return [];
@@ -558,7 +557,6 @@ export default {
     formatNumber,
     getComparableTotalDps,
     getClassNames,
-    getOffhandDps,
     getItemTypeName,
     getSlotNames,
     getSelectedActiveComponentValue(key) {
@@ -808,10 +806,10 @@ export default {
         { label: 'Delay', value: (item) => item.delay || '' },
         { label: 'Total DPS', value: (item) => this.formatDPS(getActiveDps(item, this.activeDpsSourceKeys)) },
         this.activeDpsSourceKeys.includes('main')
-          ? { label: 'MH DPS', value: (item) => this.formatDPS(item.mh_dps) }
+          ? { label: 'MH Melee DPS', value: (item) => this.formatDPS(getActiveDpsComponentValue(item, 'main', this.activeDpsSourceKeys)) }
           : null,
         this.activeDpsSourceKeys.includes('offhand')
-          ? { label: 'OH DPS', value: (item) => this.formatDPS(getOffhandDps(item)) }
+          ? { label: 'OH Melee DPS', value: (item) => this.formatDPS(getActiveDpsComponentValue(item, 'offhand', this.activeDpsSourceKeys)) }
           : null,
         this.activeDpsSourceKeys.includes('spell')
           ? { label: 'Spell DPS', value: (item) => this.formatDPS(getActiveDpsComponentValue(item, 'spell', this.activeDpsSourceKeys)) }
