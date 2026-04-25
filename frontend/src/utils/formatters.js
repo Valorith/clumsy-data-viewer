@@ -13,23 +13,42 @@ function safeDps(value) {
 
 export const DEFAULT_DPS_SOURCE_KEYS = ['main', 'spell', 'bane', 'backstab'];
 
+export function getMainHandDps(item) {
+  return safeDps(item?.mh_dps);
+}
+
+export function getMainHandMeleeDps(item) {
+  const directMelee = safeDps(item?.mh_melee_dps);
+  if (directMelee > 0) return directMelee;
+
+  return Math.max(0, getMainHandDps(item) - safeDps(item?.mh_spell_dps));
+}
+
 export function getOffhandDps(item) {
   const directOffhand = safeDps(item?.oh_dps);
   if (directOffhand > 0) return directOffhand;
 
   const combinedHands = safeDps(item?.mh_oh_dps);
-  const mainHand = safeDps(item?.mh_dps);
+  const mainHand = getMainHandDps(item);
   return Math.max(0, combinedHands - mainHand);
+}
+
+export function getOffhandMeleeDps(item) {
+  const directMelee = safeDps(item?.oh_melee_dps);
+  if (directMelee > 0) return directMelee;
+
+  return Math.max(0, getOffhandDps(item) - safeDps(item?.oh_spell_dps));
 }
 
 export function getComparableTotalDps(item) {
   const totalDps = safeDps(item?.total_dps);
   if (totalDps > 0) return totalDps;
 
-  return safeDps(item?.mh_dps)
+  const combinedHands = safeDps(item?.mh_oh_dps);
+  if (combinedHands > 0) return combinedHands + safeDps(item?.bane_dps) + safeDps(item?.bs_dps);
+
+  return getMainHandDps(item)
     + getOffhandDps(item)
-    + safeDps(item?.mh_spell_dps)
-    + safeDps(item?.oh_spell_dps)
     + safeDps(item?.bane_dps)
     + safeDps(item?.bs_dps);
 }
@@ -41,11 +60,13 @@ export function getActiveDpsComponentValue(item, key, activeSourceKeys = DEFAULT
 
   switch (key) {
     case 'main':
-      return safeDps(item?.mh_dps);
+      return getMainHandMeleeDps(item);
     case 'offhand':
-      return getOffhandDps(item);
+      return getOffhandMeleeDps(item);
     case 'spell':
-      return safeDps(item?.mh_spell_dps);
+      return activeKeys.includes('offhand')
+        ? safeDps(item?.oh_spell_dps)
+        : safeDps(item?.mh_spell_dps);
     case 'bane':
       return safeDps(item?.bane_dps);
     case 'backstab':

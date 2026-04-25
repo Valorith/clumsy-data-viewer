@@ -16,7 +16,9 @@
             :aria-pressed="isSegmentActive(segment.key)"
             @click="toggleSegment(segment.key)"
           >
-            {{ segment.label }}
+            <span class="legend-swatch" aria-hidden="true"></span>
+            <span class="legend-label">{{ segment.label }}</span>
+            <span class="legend-state" aria-hidden="true"></span>
           </button>
         </div>
         <button
@@ -27,7 +29,9 @@
           :aria-pressed="isSegmentActive(segment.key)"
           @click="toggleSegment(segment.key)"
         >
-          {{ segment.label }}
+          <span class="legend-swatch" aria-hidden="true"></span>
+          <span class="legend-label">{{ segment.label }}</span>
+          <span class="legend-state" aria-hidden="true"></span>
         </button>
       </div>
     </div>
@@ -117,9 +121,9 @@ export default {
   computed: {
     segments() {
       return [
-        { key: 'main', label: 'MH', field: 'mh_dps' },
-        { key: 'offhand', label: 'OH', field: 'oh_dps' },
-        { key: 'spell', label: 'Spell', field: 'mh_spell_dps' },
+        { key: 'main', label: 'MH', field: 'mh_melee_dps' },
+        { key: 'offhand', label: 'OH', field: 'oh_melee_dps' },
+        { key: 'spell', label: 'Spell', fieldsByHand: { main: 'mh_spell_dps', offhand: 'oh_spell_dps' } },
         { key: 'bane', label: 'Bane', field: 'bane_dps' },
         { key: 'backstab', label: 'BS', field: 'bs_dps' }
       ];
@@ -296,66 +300,144 @@ export default {
 
 .comparison-legend {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  gap: 7px;
-  max-width: 320px;
+  gap: 5px;
+  max-width: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.comparison-legend::-webkit-scrollbar {
+  display: none;
 }
 
 .legend-segment-group {
   display: inline-flex;
+  gap: 0;
   overflow: hidden;
-  border: 1px solid rgba(197, 157, 92, 0.42);
+  border: 1px solid rgba(197, 157, 92, 0.36);
   background: rgba(197, 157, 92, 0.055);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
 .legend-key {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 0;
-  border: 0;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 4px;
+  min-height: 25px;
+  padding: 4px 6px;
+  border: 1px solid rgba(197, 157, 92, 0.34);
   border-radius: 0;
-  background: transparent;
+  background: rgba(214, 194, 153, 0.045);
   color: var(--text-secondary);
+  cursor: pointer;
   font-family: var(--font-display);
   font-size: 0.74rem;
-  transition: color 0.16s ease, opacity 0.16s ease;
+  line-height: 1;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease;
 }
 
 .legend-key.melee-option {
-  min-width: 38px;
-  justify-content: center;
-  padding: 2px 6px;
+  min-width: 50px;
+  border: 0;
 }
 
 .legend-key.melee-option + .legend-key.melee-option {
   border-left: 1px solid rgba(197, 157, 92, 0.24);
 }
 
-.legend-key.melee-option[aria-pressed='true'] {
-  background: rgba(197, 157, 92, 0.14);
+.legend-key:hover,
+.legend-key:focus-visible {
+  border-color: rgba(224, 193, 132, 0.78);
+  background: rgba(224, 193, 132, 0.13);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 1px rgba(224, 193, 132, 0.18);
+  transform: translateY(-1px);
 }
 
-.legend-key:hover,
+.legend-key:focus-visible {
+  outline: 1px solid var(--brass-bright);
+  outline-offset: 2px;
+}
+
 .legend-key[aria-pressed='true'] {
+  border-color: rgba(224, 193, 132, 0.62);
+  background: rgba(197, 157, 92, 0.18);
   color: var(--text-primary);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 230, 176, 0.06),
+    0 0 0 1px rgba(197, 157, 92, 0.1);
 }
 
 .legend-key[aria-pressed='false'] {
   color: var(--text-faint);
-  opacity: 0.52;
+  opacity: 0.68;
 }
 
 .legend-key.melee-option[aria-pressed='false'] {
+  background: transparent;
   opacity: 0.72;
 }
 
-.legend-key::before {
+.legend-swatch {
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.legend-label {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.legend-state {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(214, 194, 153, 0.34);
+  background: rgba(18, 18, 16, 0.48);
+}
+
+.legend-key[aria-pressed='true'] .legend-state {
+  border-color: rgba(224, 193, 132, 0.76);
+  background: rgba(224, 193, 132, 0.18);
+}
+
+.legend-key[aria-pressed='true'] .legend-state::after {
   content: '';
-  width: 9px;
-  height: 9px;
-  border: 1px solid rgba(0, 0, 0, 0.22);
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 7px;
+  height: 4px;
+  border-left: 2px solid var(--brass-bright);
+  border-bottom: 2px solid var(--brass-bright);
+  transform: rotate(-45deg);
+}
+
+.legend-key[aria-pressed='false'] .legend-swatch {
+  opacity: 0.45;
+}
+
+.legend-key[aria-pressed='false'] .legend-state::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 50%;
+  height: 1px;
+  background: rgba(214, 194, 153, 0.34);
+  transform: rotate(-35deg);
 }
 
 .chart-frame {
@@ -422,27 +504,27 @@ export default {
 }
 
 .bar-segment.segment-main,
-.legend-key.segment-main::before {
+.legend-key.segment-main .legend-swatch {
   background: #d78269;
 }
 
 .bar-segment.segment-offhand,
-.legend-key.segment-offhand::before {
+.legend-key.segment-offhand .legend-swatch {
   background: #b48adf;
 }
 
 .bar-segment.segment-spell,
-.legend-key.segment-spell::before {
+.legend-key.segment-spell .legend-swatch {
   background: #77a8c4;
 }
 
 .bar-segment.segment-bane,
-.legend-key.segment-bane::before {
+.legend-key.segment-bane .legend-swatch {
   background: #8fa96c;
 }
 
 .bar-segment.segment-backstab,
-.legend-key.segment-backstab::before {
+.legend-key.segment-backstab .legend-swatch {
   background: #d7aa5f;
 }
 

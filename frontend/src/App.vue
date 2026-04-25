@@ -315,15 +315,10 @@
           </section>
 
           <section class="metric-section">
-            <h4>Bane Damage</h4>
-            <div v-if="selectedHasBane" class="mini-grid">
-              <span>Bane DPS</span><strong>{{ formatDPS(selectedBaneDetails.baneDps) }}</strong>
-              <span>Base DPS</span><strong>{{ formatDPS(selectedBaneDetails.baseDps) }}</strong>
-              <span>Total w/ Bane</span><strong>{{ formatDPS(selectedBaneDetails.totalDps) }}</strong>
-              <span>Share</span><strong>{{ selectedBaneDetails.share }}%</strong>
-            </div>
+            <h4>Notes</h4>
+            <p v-if="selectedNotes" class="notes-text">{{ selectedNotes }}</p>
             <div v-else class="empty-note">
-              No active bane contribution recorded for this item.
+              No notes recorded for this item.
             </div>
           </section>
 
@@ -540,20 +535,8 @@ export default {
     selectedAllaUrl() {
       return this.selectedItem ? `${this.allaBaseUrl}${this.selectedItem.item_id}` : this.allaBaseUrl;
     },
-    selectedBaneDetails() {
-      const baneDps = this.getSelectedActiveComponentValue('bane');
-      const totalDps = this.selectedActiveDps;
-      const baseDps = Math.max(0, totalDps - baneDps);
-
-      return {
-        baneDps,
-        totalDps,
-        baseDps,
-        share: totalDps > 0 ? Math.round((baneDps / totalDps) * 100) : 0
-      };
-    },
-    selectedHasBane() {
-      return this.selectedBaneDetails.baneDps > 0;
+    selectedNotes() {
+      return String(this.selectedItem?.notes || '').trim();
     },
     lastRefreshedLabel() {
       if (!this.lastRefreshedAt) return 'not yet';
@@ -817,21 +800,31 @@ export default {
         this.showToast('No rows to export');
         return;
       }
-      const header = ['Item ID', 'Name', 'Type', 'DMG', 'Delay', 'Total DPS', 'MH DPS', 'OH DPS', 'Spell DPS', 'Offhand Spell DPS', 'Bane DPS', 'BS DPS'];
-      const rows = this.activeTableItems.map((item) => [
-        item.item_id,
-        item.name || `Item #${item.item_id}`,
-        this.getItemTypeName(item.itemtype),
-        item.damage || '',
-        item.delay || '',
-        this.formatDPS(getActiveDps(item, this.activeDpsSourceKeys)),
-        this.formatDPS(item.mh_dps),
-        this.formatDPS(getOffhandDps(item)),
-        this.formatDPS(item.mh_spell_dps),
-        this.formatDPS(item.oh_spell_dps),
-        this.formatDPS(item.bane_dps),
-        this.formatDPS(item.bs_dps)
-      ]);
+      const columns = [
+        { label: 'Item ID', value: (item) => item.item_id },
+        { label: 'Name', value: (item) => item.name || `Item #${item.item_id}` },
+        { label: 'Type', value: (item) => this.getItemTypeName(item.itemtype) },
+        { label: 'DMG', value: (item) => item.damage || '' },
+        { label: 'Delay', value: (item) => item.delay || '' },
+        { label: 'Total DPS', value: (item) => this.formatDPS(getActiveDps(item, this.activeDpsSourceKeys)) },
+        this.activeDpsSourceKeys.includes('main')
+          ? { label: 'MH DPS', value: (item) => this.formatDPS(item.mh_dps) }
+          : null,
+        this.activeDpsSourceKeys.includes('offhand')
+          ? { label: 'OH DPS', value: (item) => this.formatDPS(getOffhandDps(item)) }
+          : null,
+        this.activeDpsSourceKeys.includes('spell')
+          ? { label: 'Spell DPS', value: (item) => this.formatDPS(getActiveDpsComponentValue(item, 'spell', this.activeDpsSourceKeys)) }
+          : null,
+        this.activeDpsSourceKeys.includes('bane')
+          ? { label: 'Bane DPS', value: (item) => this.formatDPS(item.bane_dps) }
+          : null,
+        this.activeDpsSourceKeys.includes('backstab')
+          ? { label: 'BS DPS', value: (item) => this.formatDPS(item.bs_dps) }
+          : null
+      ].filter(Boolean);
+      const header = columns.map((column) => column.label);
+      const rows = this.activeTableItems.map((item) => columns.map((column) => column.value(item)));
       const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
 
       let copied = false;
@@ -1472,25 +1465,19 @@ dd {
   color: inherit;
 }
 
-.mini-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 16px;
-  margin-top: 14px;
-  color: var(--text-secondary);
-}
-
-.mini-grid strong {
-  color: var(--text-primary);
-  text-align: right;
-  font-weight: 500;
-}
-
 .empty-note {
   margin-top: 12px;
   color: var(--text-muted);
   font-size: 0.84rem;
   line-height: 1.4;
+}
+
+.notes-text {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .record-link {

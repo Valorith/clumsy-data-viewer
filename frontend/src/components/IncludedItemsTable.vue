@@ -52,11 +52,11 @@
           <td class="numeric">{{ item.damage || '-' }}</td>
           <td class="numeric">{{ item.delay || '-' }}</td>
           <td class="numeric total">{{ formatDPS(getActiveDps(item, activeSegmentKeys)) }}</td>
-          <td class="numeric">{{ formatDPS(item.mh_dps) }}</td>
-          <td class="numeric">{{ formatDPS(getOffhandDps(item)) }}</td>
-          <td class="numeric">{{ formatDPS(item.mh_spell_dps) }}</td>
-          <td class="numeric">{{ formatDPS(item.bane_dps) }}</td>
-          <td class="numeric">{{ formatDPS(item.bs_dps) }}</td>
+          <td v-if="isSourceActive('main')" class="numeric">{{ formatDPS(item.mh_dps) }}</td>
+          <td v-if="isSourceActive('offhand')" class="numeric">{{ formatDPS(getOffhandDps(item)) }}</td>
+          <td v-if="isSourceActive('spell')" class="numeric">{{ formatDPS(getActiveSpellDps(item)) }}</td>
+          <td v-if="isSourceActive('bane')" class="numeric">{{ formatDPS(item.bane_dps) }}</td>
+          <td v-if="isSourceActive('backstab')" class="numeric">{{ formatDPS(item.bs_dps) }}</td>
         </tr>
       </tbody>
     </table>
@@ -69,6 +69,7 @@ import {
   DEFAULT_DPS_SOURCE_KEYS,
   formatDPS,
   getActiveDps,
+  getActiveDpsComponentValue,
   getItemTypeColor,
   getItemTypeName,
   getOffhandDps
@@ -109,12 +110,12 @@ export default {
         { key: 'damage', label: 'DMG', type: 'number' },
         { key: 'delay', label: 'Delay', type: 'number' },
         { key: 'total_dps', label: 'Total DPS', type: 'number' },
-        { key: 'mh_dps', label: 'MH DPS', type: 'number' },
-        { key: 'oh_dps', label: 'OH DPS', type: 'number', value: getOffhandDps },
-        { key: 'mh_spell_dps', label: 'Spell DPS', type: 'number' },
-        { key: 'bane_dps', label: 'Bane DPS', type: 'number' },
-        { key: 'bs_dps', label: 'BS DPS', type: 'number' }
-      ];
+        { key: 'mh_dps', label: 'MH DPS', type: 'number', sourceKey: 'main' },
+        { key: 'oh_dps', label: 'OH DPS', type: 'number', sourceKey: 'offhand', value: getOffhandDps },
+        { key: 'mh_spell_dps', label: 'Spell DPS', type: 'number', sourceKey: 'spell', value: this.getActiveSpellDps },
+        { key: 'bane_dps', label: 'Bane DPS', type: 'number', sourceKey: 'bane' },
+        { key: 'bs_dps', label: 'BS DPS', type: 'number', sourceKey: 'backstab' }
+      ].filter((column) => !column.sourceKey || this.isSourceActive(column.sourceKey));
     },
     sortedItems() {
       const items = [...this.items];
@@ -149,6 +150,13 @@ export default {
   methods: {
     formatDPS,
     getActiveDps,
+    isSourceActive(key) {
+      return this.activeSegmentKeys.includes(key);
+    },
+    getActiveSpellDps(item) {
+      if (!this.activeSegmentKeys.includes('spell')) return 0;
+      return getActiveDpsComponentValue(item, 'spell', this.activeSegmentKeys);
+    },
     getItemTypeColor,
     getItemTypeName,
     getOffhandDps,

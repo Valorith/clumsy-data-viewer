@@ -73,8 +73,9 @@ app.get('/api/items', async (req, res) => {
     const sortBy = req.query.sortBy || 'item_id';
     const sortOrder = req.query.sortOrder === 'desc' ? 'DESC' : 'ASC';
     
-    const validSortFields = ['item_id', 'name', 'mh_dps', 'mh_spell_dps', 'oh_spell_dps',
-                            'oh_dps', 'mh_oh_dps', 'bs_dps', 'bane_dps', 'total_dps'];
+    const validSortFields = ['item_id', 'name', 'mh_dps', 'mh_melee_dps', 'mh_spell_dps',
+                            'oh_dps', 'oh_melee_dps', 'oh_spell_dps', 'mh_oh_dps',
+                            'bs_dps', 'bane_dps', 'total_dps'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'item_id';
     const derivedOffhandDpsSql = `
       CASE
@@ -131,8 +132,10 @@ app.get('/api/items', async (req, res) => {
         ip.item_id,
         ip.total_dps,
         ip.mh_dps,
+        ip.mh_melee_dps,
         ip.mh_spell_dps,
         ip.oh_dps,
+        ip.oh_melee_dps,
         ip.oh_spell_dps,
         ip.mh_oh_dps,
         ip.bane_dps,
