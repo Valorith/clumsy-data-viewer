@@ -11,6 +11,8 @@ function safeDps(value) {
   return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
+export const DEFAULT_DPS_SOURCE_KEYS = ['main', 'spell', 'bane', 'backstab'];
+
 export function getOffhandDps(item) {
   const directOffhand = safeDps(item?.oh_dps);
   if (directOffhand > 0) return directOffhand;
@@ -21,7 +23,47 @@ export function getOffhandDps(item) {
 }
 
 export function getComparableTotalDps(item) {
-  return safeDps(item?.total_dps) + getOffhandDps(item);
+  const totalDps = safeDps(item?.total_dps);
+  if (totalDps > 0) return totalDps;
+
+  return safeDps(item?.mh_dps)
+    + getOffhandDps(item)
+    + safeDps(item?.mh_spell_dps)
+    + safeDps(item?.oh_spell_dps)
+    + safeDps(item?.bane_dps)
+    + safeDps(item?.bs_dps);
+}
+
+export function getActiveDpsComponentValue(item, key, activeSourceKeys = DEFAULT_DPS_SOURCE_KEYS) {
+  const activeKeys = Array.isArray(activeSourceKeys) && activeSourceKeys.length
+    ? activeSourceKeys
+    : DEFAULT_DPS_SOURCE_KEYS;
+  const useOffhand = activeKeys.includes('offhand');
+
+  switch (key) {
+    case 'main':
+      return safeDps(item?.mh_dps);
+    case 'offhand':
+      return getOffhandDps(item);
+    case 'spell':
+      return useOffhand ? safeDps(item?.oh_spell_dps) : safeDps(item?.mh_spell_dps);
+    case 'bane':
+      return safeDps(item?.bane_dps);
+    case 'backstab':
+      return safeDps(item?.bs_dps);
+    default:
+      return 0;
+  }
+}
+
+export function getActiveDps(item, activeSourceKeys = DEFAULT_DPS_SOURCE_KEYS) {
+  const activeKeys = Array.isArray(activeSourceKeys) && activeSourceKeys.length
+    ? activeSourceKeys
+    : DEFAULT_DPS_SOURCE_KEYS;
+
+  return activeKeys.reduce((sum, key) => (
+    sum + getActiveDpsComponentValue(item, key, activeKeys)
+  ), 0);
 }
 
 export function getClassNames(classBitMask) {

@@ -85,8 +85,7 @@ app.get('/api/items', async (req, res) => {
     `;
     const sortExpressions = {
       name: 'i.Name',
-      oh_dps: `(${derivedOffhandDpsSql})`,
-      total_dps: `(ip.total_dps + ${derivedOffhandDpsSql})`
+      oh_dps: `(${derivedOffhandDpsSql})`
     };
     const sortExpression = sortExpressions[sortField] || `ip.${sortField}`;
     

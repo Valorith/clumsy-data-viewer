@@ -378,8 +378,8 @@ export default {
     },
     componentMetrics() {
       return {
-        main: this.computeItemMetrics(this.item, this.mainHandComponents, { useOffHandLogic: false }),
-        off: this.computeItemMetrics(this.item, this.offHandComponents, { useOffHandLogic: true })
+        main: this.computeItemMetrics(this.item, this.mainHandComponents),
+        off: this.computeItemMetrics(this.item, this.offHandComponents)
       };
     },
     displayTotalDps() {
@@ -410,7 +410,7 @@ export default {
     },
     peerEntries() {
       return this.similarItems.map((peerItem) => {
-        const metrics = this.computeItemMetrics(peerItem, this.mainHandComponents, { useOffHandLogic: false });
+        const metrics = this.computeItemMetrics(peerItem, this.mainHandComponents);
         const total = getComparableTotalDps(peerItem);
         const segments = this.mainHandComponents
           .map((component) => {
@@ -525,21 +525,15 @@ export default {
       const metrics = this.componentMetrics?.[hand];
       if (!metrics || !key) return '';
 
-      const scaled = metrics.scaled?.[key] ?? 0;
       const raw = metrics.raw?.[key] ?? 0;
-
-      if (Math.abs(scaled - raw) < 0.01) {
-        return `Raw DPS: ${this.formatDPS(raw)}`;
-      }
-
-      return `Scaled DPS: ${this.formatDPS(scaled)} (Raw: ${this.formatDPS(raw)})`;
+      return `Raw DPS: ${this.formatDPS(raw)}`;
     },
     componentValue(hand, key) {
       const metrics = this.componentMetrics?.[hand];
       if (!metrics || !key) return 0;
-      return metrics.scaled?.[key] ?? 0;
+      return metrics.raw?.[key] ?? 0;
     },
-    computeItemMetrics(item, components, { useOffHandLogic = false } = {}) {
+    computeItemMetrics(item, components) {
       const safeComponents = Array.isArray(components)
         ? components.filter(component => component && component.key && component.field)
         : [];
@@ -550,29 +544,7 @@ export default {
       });
 
       const rawTotal = rawValues.reduce((sum, value) => sum + value, 0);
-      let targetTotal = Number(item?.total_dps ?? 0);
-
-      if (!Number.isFinite(targetTotal) || targetTotal < 0) {
-        targetTotal = 0;
-      }
-
-      if (useOffHandLogic) {
-        if (rawTotal > targetTotal || targetTotal <= 0) {
-          targetTotal = rawTotal;
-        }
-      } else if (targetTotal <= 0) {
-        targetTotal = rawTotal;
-      }
-
-      let scaledValues;
-      if (rawTotal > 0 && targetTotal > 0) {
-        const scale = targetTotal / rawTotal;
-        scaledValues = rawValues.map(value => value * scale);
-      } else if (targetTotal > 0 && safeComponents.length > 0) {
-        scaledValues = safeComponents.map((_, index) => (index === 0 ? targetTotal : 0));
-      } else {
-        scaledValues = rawValues.map(() => 0);
-      }
+      const scaledValues = rawValues;
 
       const scaledMap = {};
       const rawMap = {};
@@ -591,7 +563,7 @@ export default {
           total: rawValues.reduce((sum, value) => sum + value, 0)
         },
         rawTotal,
-        targetTotal
+        targetTotal: rawTotal
       };
     },
     getComponentColor(key, variant) {

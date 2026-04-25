@@ -167,7 +167,9 @@
           :items="allItemsForComparison.length ? allItemsForComparison : items"
           :loading="comparisonLoading"
           :selected-item-id="selectedItem?.item_id"
+          :active-segment-keys="activeDpsSourceKeys"
           @select="selectItem"
+          @update:active-segment-keys="activeDpsSourceKeys = $event"
         />
 
         <section class="table-panel">
@@ -200,14 +202,15 @@
 
           <div v-if="loading" class="state-panel">Loading ledger rows...</div>
           <IncludedItemsTable
-            v-else-if="items.length"
-            :items="items"
+            v-else-if="activeTableItems.length"
+            :items="activeTableItems"
             :selected-item-id="selectedItem?.item_id"
+            :active-segment-keys="activeDpsSourceKeys"
             @select="selectItem"
           />
           <div v-else class="state-panel">
             <strong>No rows available.</strong>
-            <span>{{ error ? 'The API is unavailable or returned an error.' : 'Adjust filters to broaden the result set.' }}</span>
+            <span>{{ emptyTableMessage }}</span>
           </div>
 
           <div v-if="totalPages > 1" class="pagination">
@@ -284,29 +287,13 @@
 
           <section class="metric-section">
             <dl class="metric-list">
-              <div class="metric-row total">
-                <dt>Total DPS</dt>
-                <dd>{{ formatDPS(getComparableTotalDps(selectedItem)) }}</dd>
-              </div>
-              <div class="metric-row danger">
-                <dt>MH DPS</dt>
-                <dd>{{ formatDPS(selectedItem.mh_dps) }}</dd>
-              </div>
-              <div class="metric-row warning">
-                <dt>Offhand DPS</dt>
-                <dd>{{ formatDPS(getOffhandDps(selectedItem)) }}</dd>
-              </div>
-              <div class="metric-row info">
-                <dt>Spell DPS</dt>
-                <dd>{{ formatDPS(selectedItem.mh_spell_dps) }}</dd>
-              </div>
-              <div class="metric-row success">
-                <dt>Bane DPS</dt>
-                <dd>{{ formatDPS(selectedItem.bane_dps) }}</dd>
-              </div>
-              <div class="metric-row warning">
-                <dt>Backstab DPS</dt>
-                <dd>{{ formatDPS(selectedItem.bs_dps) }}</dd>
+              <div
+                v-for="metric in selectedMetricRows"
+                :key="metric.label"
+                :class="['metric-row', metric.className]"
+              >
+                <dt>{{ metric.label }}</dt>
+                <dd>{{ formatDPS(metric.value) }}</dd>
               </div>
             </dl>
           </section>
@@ -336,7 +323,7 @@
               <span>Share</span><strong>{{ selectedBaneDetails.share }}%</strong>
             </div>
             <div v-else class="empty-note">
-              No bane contribution recorded for this item.
+              No active bane contribution recorded for this item.
             </div>
           </section>
 
@@ -364,8 +351,11 @@ import itemsApi from './api/items';
 import config from './config';
 import { normalizeModelId } from './utils/spire-assets';
 import {
+  DEFAULT_DPS_SOURCE_KEYS,
   formatDPS,
   formatNumber,
+  getActiveDps,
+  getActiveDpsComponentValue,
   getComparableTotalDps,
   getClassNames,
   getOffhandDps,
@@ -410,6 +400,7 @@ export default {
       totalPages: 0,
       selectedItemTypes: null,
       selectedItem: null,
+      activeDpsSourceKeys: [...DEFAULT_DPS_SOURCE_KEYS],
       allItemsForComparison: [],
       comparisonLoading: false,
       latestComparisonRequestId: 0,
@@ -459,20 +450,89 @@ export default {
       const total = source.reduce((sum, item) => sum + getComparableTotalDps(item), 0);
       return total / source.length;
     },
+    activeComparisonItemsForAverage() {
+      const source = this.allItemsForComparison.length ? this.allItemsForComparison : this.items;
+      return [...source]
+        .filter((item) => getActiveDps(item, this.activeDpsSourceKeys) > 0)
+        .sort((a, b) => {
+          const activeDifference = getActiveDps(b, this.activeDpsSourceKeys) - getActiveDps(a, this.activeDpsSourceKeys);
+          if (activeDifference !== 0) return activeDifference;
+          return getComparableTotalDps(b) - getComparableTotalDps(a);
+        })
+        .slice(0, 50);
+    },
+    activeTableItems() {
+      return [...this.items]
+        .filter((item) => getActiveDps(item, this.activeDpsSourceKeys) > 0)
+        .sort((a, b) => {
+          const activeDifference = getActiveDps(b, this.activeDpsSourceKeys) - getActiveDps(a, this.activeDpsSourceKeys);
+          if (activeDifference !== 0) return activeDifference;
+          return getComparableTotalDps(b) - getComparableTotalDps(a);
+        });
+    },
+    emptyTableMessage() {
+      if (this.error) return 'The API is unavailable or returned an error.';
+      if (this.items.length) return 'No rows match the active DPS sources.';
+      return 'Adjust filters to broaden the result set.';
+    },
     selectedDeltas() {
       if (!this.selectedItem) return [];
-      const avg = this.averageTotalDps || 0;
-      return [
-        { label: 'Total DPS', value: getComparableTotalDps(this.selectedItem) - avg, base: avg },
-        { label: 'MH DPS', value: Number(this.selectedItem.mh_dps || 0) - avg * 0.72, base: avg * 0.72 },
-        { label: 'Offhand DPS', value: getOffhandDps(this.selectedItem) - avg * 0.28, base: avg * 0.28 },
-        { label: 'Spell DPS', value: Number(this.selectedItem.mh_spell_dps || 0) - avg * 0.12, base: avg * 0.12 },
-        { label: 'Bane DPS', value: Number(this.selectedItem.bane_dps || 0) - avg * 0.1, base: avg * 0.1 },
-        { label: 'Backstab DPS', value: Number(this.selectedItem.bs_dps || 0) - avg * 0.28, base: avg * 0.28 }
-      ].map((delta) => ({
+      return this.selectedMetricRows.map((metric) => {
+        const base = this.getActiveMetricAverage(metric.key);
+        return {
+          label: metric.label,
+          value: metric.value - base,
+          base
+        };
+      }).map((delta) => ({
         ...delta,
         percent: delta.base > 0 ? Math.round((delta.value / delta.base) * 100) : 0
       }));
+    },
+    selectedActiveDps() {
+      return getActiveDps(this.selectedItem, this.activeDpsSourceKeys);
+    },
+    activeHandKey() {
+      return this.activeDpsSourceKeys.includes('offhand') ? 'offhand' : 'main';
+    },
+    activeHandLabel() {
+      return this.activeHandKey === 'offhand' ? 'Offhand DPS' : 'MH DPS';
+    },
+    selectedMetricRows() {
+      if (!this.selectedItem) return [];
+
+      return [
+        {
+          key: 'total',
+          label: 'Total DPS',
+          value: this.selectedActiveDps,
+          className: 'total'
+        },
+        {
+          key: this.activeHandKey,
+          label: this.activeHandLabel,
+          value: this.getSelectedActiveComponentValue(this.activeHandKey),
+          className: this.activeHandKey === 'offhand' ? 'warning' : 'danger'
+        },
+        {
+          key: 'spell',
+          label: 'Spell DPS',
+          value: this.getSelectedActiveComponentValue('spell'),
+          className: 'info'
+        },
+        {
+          key: 'bane',
+          label: 'Bane DPS',
+          value: this.getSelectedActiveComponentValue('bane'),
+          className: 'success'
+        },
+        {
+          key: 'backstab',
+          label: 'Backstab DPS',
+          value: this.getSelectedActiveComponentValue('backstab'),
+          className: 'warning'
+        }
+      ];
     },
     selectedModelId() {
       return this.selectedItem ? normalizeModelId(this.selectedItem) : '';
@@ -481,8 +541,8 @@ export default {
       return this.selectedItem ? `${this.allaBaseUrl}${this.selectedItem.item_id}` : this.allaBaseUrl;
     },
     selectedBaneDetails() {
-      const baneDps = Number(this.selectedItem?.bane_dps || 0);
-      const totalDps = getComparableTotalDps(this.selectedItem);
+      const baneDps = this.getSelectedActiveComponentValue('bane');
+      const totalDps = this.selectedActiveDps;
       const baseDps = Math.max(0, totalDps - baneDps);
 
       return {
@@ -518,6 +578,21 @@ export default {
     getOffhandDps,
     getItemTypeName,
     getSlotNames,
+    getSelectedActiveComponentValue(key) {
+      if (!this.selectedItem || !this.activeDpsSourceKeys.includes(key)) return 0;
+      return getActiveDpsComponentValue(this.selectedItem, key, this.activeDpsSourceKeys);
+    },
+    getActiveMetricAverage(key) {
+      if (!this.activeComparisonItemsForAverage.length) return 0;
+      if (key !== 'total' && !this.activeDpsSourceKeys.includes(key)) return 0;
+      const total = this.activeComparisonItemsForAverage.reduce((sum, item) => {
+        if (key === 'total') {
+          return sum + getActiveDps(item, this.activeDpsSourceKeys);
+        }
+        return sum + getActiveDpsComponentValue(item, key, this.activeDpsSourceKeys);
+      }, 0);
+      return total / this.activeComparisonItemsForAverage.length;
+    },
     typeCount(typeId) {
       return this.stats?.typeCounts?.[typeId] || 0;
     },
@@ -735,21 +810,21 @@ export default {
       }
     },
     resetGlobalDpsGraph() {
-      this.$refs.globalComparisonPanel?.resetSegments?.();
+      this.activeDpsSourceKeys = [...DEFAULT_DPS_SOURCE_KEYS];
     },
     async exportVisibleRows() {
-      if (!this.items.length) {
+      if (!this.activeTableItems.length) {
         this.showToast('No rows to export');
         return;
       }
       const header = ['Item ID', 'Name', 'Type', 'DMG', 'Delay', 'Total DPS', 'MH DPS', 'OH DPS', 'Spell DPS', 'Offhand Spell DPS', 'Bane DPS', 'BS DPS'];
-      const rows = this.items.map((item) => [
+      const rows = this.activeTableItems.map((item) => [
         item.item_id,
         item.name || `Item #${item.item_id}`,
         this.getItemTypeName(item.itemtype),
         item.damage || '',
         item.delay || '',
-        this.formatDPS(getComparableTotalDps(item)),
+        this.formatDPS(getActiveDps(item, this.activeDpsSourceKeys)),
         this.formatDPS(item.mh_dps),
         this.formatDPS(getOffhandDps(item)),
         this.formatDPS(item.mh_spell_dps),

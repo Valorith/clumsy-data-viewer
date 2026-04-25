@@ -45,8 +45,12 @@
           type="button"
           :class="['dps-bar', { selected: bar.item.item_id === selectedItemId }]"
           :style="{ height: bar.height }"
-          :title="bar.title"
+          :aria-label="bar.title"
+          @focus="showTooltip(index)"
+          @blur="hideTooltip"
           @click="$emit('select', bar.item)"
+          @pointerenter="showTooltip(index)"
+          @pointerleave="hideTooltip"
         >
           <span class="sr-only">{{ index + 1 }}</span>
           <span
@@ -57,6 +61,15 @@
             aria-hidden="true"
           ></span>
         </button>
+        <div
+          v-if="activeTooltip"
+          :class="['bar-tooltip', activeTooltip.edgeClass]"
+          :style="{ left: activeTooltip.left }"
+          role="tooltip"
+        >
+          <strong>{{ activeTooltip.heading }}</strong>
+          <span v-for="line in activeTooltip.details" :key="line">{{ line }}</span>
+        </div>
         <div v-if="!displayedBars.length" class="empty-chart">
           {{ loading ? 'Loading...' : 'No items match the current filters.' }}
         </div>
@@ -69,10 +82,9 @@
 </template>
 
 <script>
-import { formatDPS, getOffhandDps } from '../utils/formatters';
+import { DEFAULT_DPS_SOURCE_KEYS, formatDPS, getActiveDps, getActiveDpsComponentValue } from '../utils/formatters';
 
 const MELEE_SEGMENT_KEYS = ['main', 'offhand'];
-const DEFAULT_SEGMENT_KEYS = ['main', 'spell', 'bane', 'backstab'];
 const MAIN_HAND_KEY = 'main';
 const OFFHAND_KEY = 'offhand';
 
@@ -90,19 +102,23 @@ export default {
     selectedItemId: {
       type: [Number, String],
       default: null
+    },
+    activeSegmentKeys: {
+      type: Array,
+      default: () => [...DEFAULT_DPS_SOURCE_KEYS]
     }
   },
-  emits: ['select'],
+  emits: ['select', 'update:activeSegmentKeys'],
   data() {
     return {
-      activeSegmentKeys: [...DEFAULT_SEGMENT_KEYS]
+      activeTooltipIndex: null
     };
   },
   computed: {
     segments() {
       return [
         { key: 'main', label: 'MH', field: 'mh_dps' },
-        { key: 'offhand', label: 'OH', value: getOffhandDps },
+        { key: 'offhand', label: 'OH', field: 'oh_dps' },
         { key: 'spell', label: 'Spell', fieldsByHand: { main: 'mh_spell_dps', offhand: 'oh_spell_dps' } },
         { key: 'bane', label: 'Bane', field: 'bane_dps' },
         { key: 'backstab', label: 'BS', field: 'bs_dps' }
@@ -119,11 +135,6 @@ export default {
     },
     independentSegments() {
       return this.segments.filter((segment) => !MELEE_SEGMENT_KEYS.includes(segment.key));
-    },
-    comparisonSegments() {
-      return this.segments.filter((segment) => (
-        this.isSegmentActive(segment.key) || !MELEE_SEGMENT_KEYS.includes(segment.key)
-      ));
     },
     displayedItems() {
       return [...this.items]
@@ -154,48 +165,52 @@ export default {
     averageLineBottom() {
       if (!this.maxValue) return '0%';
       return `${Math.min(96, Math.max(2, (this.averageValue / this.maxValue) * 100))}%`;
+    },
+    activeTooltip() {
+      if (this.activeTooltipIndex === null) return null;
+
+      const bar = this.displayedBars[this.activeTooltipIndex];
+      if (!bar) return null;
+
+      const lines = bar.title.split('\n');
+      const barCount = this.displayedBars.length;
+      const position = barCount > 0
+        ? ((this.activeTooltipIndex + 0.5) / barCount) * 100
+        : 50;
+
+      return {
+        heading: lines[0],
+        details: lines.slice(1),
+        left: `${position}%`,
+        edgeClass: this.getTooltipEdgeClass(this.activeTooltipIndex, barCount)
+      };
     }
   },
   methods: {
     formatDPS,
+    showTooltip(index) {
+      this.activeTooltipIndex = index;
+    },
+    hideTooltip() {
+      this.activeTooltipIndex = null;
+    },
+    getTooltipEdgeClass(index, count) {
+      if (count <= 1) return '';
+      if (index === 0) return 'edge-start';
+      if (index === count - 1) return 'edge-end';
+      return '';
+    },
     getValue(item) {
-      return this.activeSegments.reduce((sum, segment) => sum + this.getScaledSegmentValue(item, segment), 0);
+      return getActiveDps(item, this.activeSegmentKeys);
     },
     getStoredTotalValue(item) {
       return Math.max(0, Number(item?.total_dps || 0));
     },
-    getTotalValue(item) {
-      const rawTotal = this.segmentTotal(item);
-      const storedTotal = this.getStoredTotalValue(item);
-
-      if (this.activeHandKey === MAIN_HAND_KEY) {
-        return storedTotal || rawTotal;
-      }
-
-      return rawTotal;
-    },
     getSegmentValue(item, segment) {
-      if (typeof segment.value === 'function') {
-        return Math.max(0, Number(segment.value(item) || 0));
-      }
-      if (segment.fieldsByHand) {
-        return Math.max(0, Number(item?.[segment.fieldsByHand[this.activeHandKey]] || 0));
-      }
-      return Math.max(0, Number(item?.[segment.field] || 0));
-    },
-    segmentTotal(item, segments = this.comparisonSegments) {
-      return segments.reduce((sum, segment) => sum + this.getSegmentValue(item, segment), 0);
+      return getActiveDpsComponentValue(item, segment.key, this.activeSegmentKeys);
     },
     getScaledSegmentValue(item, segment) {
-      const rawValue = this.getSegmentValue(item, segment);
-      const rawTotal = this.segmentTotal(item);
-      const targetTotal = this.getTotalValue(item) || rawTotal;
-
-      if (rawTotal > 0 && targetTotal > 0) {
-        return rawValue * (targetTotal / rawTotal);
-      }
-
-      return MELEE_SEGMENT_KEYS.includes(segment.key) ? targetTotal : 0;
+      return this.getSegmentValue(item, segment);
     },
     isSegmentActive(key) {
       return this.activeSegmentKeys.includes(key);
@@ -204,19 +219,20 @@ export default {
       if (MELEE_SEGMENT_KEYS.includes(key)) {
         if (this.isSegmentActive(key)) return;
 
-        this.activeSegmentKeys = [
+        this.$emit('update:activeSegmentKeys', [
           ...this.activeSegmentKeys.filter((activeKey) => !MELEE_SEGMENT_KEYS.includes(activeKey)),
           key
-        ];
+        ]);
         return;
       }
 
-      this.activeSegmentKeys = this.isSegmentActive(key)
+      const nextKeys = this.isSegmentActive(key)
         ? this.activeSegmentKeys.filter((activeKey) => activeKey !== key)
         : [...this.activeSegmentKeys, key];
+      this.$emit('update:activeSegmentKeys', nextKeys);
     },
     resetSegments() {
-      this.activeSegmentKeys = [...DEFAULT_SEGMENT_KEYS];
+      this.$emit('update:activeSegmentKeys', [...DEFAULT_DPS_SOURCE_KEYS]);
     },
     createBar(item, activeTotal, maxValue) {
       const segments = activeTotal ? this.activeSegments
@@ -239,17 +255,15 @@ export default {
       };
     },
     getBarTitle(item, activeTotal) {
-      const totalLabel = this.activeHandKey === OFFHAND_KEY ? 'Recalculated OH total' : 'Stored MH total';
       const lines = [
         `${item.name || `Item #${item.item_id}`}: ${formatDPS(activeTotal)} active DPS`,
-        `${totalLabel}: ${formatDPS(this.getTotalValue(item))}`,
         ...this.activeSegments.map((segment) => (
           `${segment.label} contribution: ${formatDPS(this.getScaledSegmentValue(item, segment))}`
         ))
       ];
 
-      if (this.activeHandKey === OFFHAND_KEY && this.getStoredTotalValue(item) > 0) {
-        lines.splice(2, 0, `Stored MH total: ${formatDPS(this.getStoredTotalValue(item))}`);
+      if (this.getStoredTotalValue(item) > 0) {
+        lines.splice(1, 0, `Stored total: ${formatDPS(this.getStoredTotalValue(item))}`);
       }
 
       return lines.join('\n');
@@ -376,7 +390,7 @@ export default {
   gap: 4px;
   min-width: 0;
   padding: 16px 10px 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .dps-bar {
@@ -433,10 +447,45 @@ export default {
 }
 
 .dps-bar:hover,
+.dps-bar:focus-visible,
 .dps-bar.selected {
   opacity: 1;
   outline: 1px solid var(--brass-bright);
   outline-offset: 1px;
+}
+
+.bar-tooltip {
+  position: absolute;
+  top: 8px;
+  z-index: 5;
+  display: grid;
+  gap: 3px;
+  min-width: 190px;
+  max-width: min(270px, calc(100% - 16px));
+  padding: 8px 10px;
+  border: 1px solid rgba(214, 194, 153, 0.42);
+  background: rgba(18, 18, 16, 0.96);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.bar-tooltip.edge-start {
+  transform: translateX(0);
+}
+
+.bar-tooltip.edge-end {
+  transform: translateX(-100%);
+}
+
+.bar-tooltip strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .average-line {

@@ -51,7 +51,7 @@
           <td>{{ getItemTypeName(item.itemtype) }}</td>
           <td class="numeric">{{ item.damage || '-' }}</td>
           <td class="numeric">{{ item.delay || '-' }}</td>
-          <td class="numeric total">{{ formatDPS(getComparableTotalDps(item)) }}</td>
+          <td class="numeric total">{{ formatDPS(getActiveDps(item, activeSegmentKeys)) }}</td>
           <td class="numeric">{{ formatDPS(item.mh_dps) }}</td>
           <td class="numeric">{{ formatDPS(getOffhandDps(item)) }}</td>
           <td class="numeric">{{ formatDPS(item.mh_spell_dps) }}</td>
@@ -65,7 +65,14 @@
 
 <script>
 import ItemIcon from './ItemIcon.vue';
-import { formatDPS, getComparableTotalDps, getItemTypeColor, getItemTypeName, getOffhandDps } from '../utils/formatters';
+import {
+  DEFAULT_DPS_SOURCE_KEYS,
+  formatDPS,
+  getActiveDps,
+  getItemTypeColor,
+  getItemTypeName,
+  getOffhandDps
+} from '../utils/formatters';
 
 export default {
   name: 'IncludedItemsTable',
@@ -80,6 +87,10 @@ export default {
     selectedItemId: {
       type: [Number, String],
       default: null
+    },
+    activeSegmentKeys: {
+      type: Array,
+      default: () => [...DEFAULT_DPS_SOURCE_KEYS]
     }
   },
   emits: ['select'],
@@ -116,8 +127,8 @@ export default {
       items.sort((a, b) => {
         let comparison = 0;
         if (column.type === 'number') {
-          const leftValue = column.key === 'total_dps' ? getComparableTotalDps(a) : Number(column.value?.(a) ?? a?.[column.key] ?? 0);
-          const rightValue = column.key === 'total_dps' ? getComparableTotalDps(b) : Number(column.value?.(b) ?? b?.[column.key] ?? 0);
+          const leftValue = column.key === 'total_dps' ? getActiveDps(a, this.activeSegmentKeys) : Number(column.value?.(a) ?? a?.[column.key] ?? 0);
+          const rightValue = column.key === 'total_dps' ? getActiveDps(b, this.activeSegmentKeys) : Number(column.value?.(b) ?? b?.[column.key] ?? 0);
           comparison = leftValue - rightValue;
         } else if (column.type === 'type') {
           comparison = this.getItemTypeName(a.itemtype).localeCompare(this.getItemTypeName(b.itemtype));
@@ -137,7 +148,7 @@ export default {
   },
   methods: {
     formatDPS,
-    getComparableTotalDps,
+    getActiveDps,
     getItemTypeColor,
     getItemTypeName,
     getOffhandDps,
