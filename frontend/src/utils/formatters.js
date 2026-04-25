@@ -38,7 +38,6 @@ export function getActiveDpsComponentValue(item, key, activeSourceKeys = DEFAULT
   const activeKeys = Array.isArray(activeSourceKeys) && activeSourceKeys.length
     ? activeSourceKeys
     : DEFAULT_DPS_SOURCE_KEYS;
-  const useOffhand = activeKeys.includes('offhand');
 
   switch (key) {
     case 'main':
@@ -46,7 +45,7 @@ export function getActiveDpsComponentValue(item, key, activeSourceKeys = DEFAULT
     case 'offhand':
       return getOffhandDps(item);
     case 'spell':
-      return useOffhand ? safeDps(item?.oh_spell_dps) : safeDps(item?.mh_spell_dps);
+      return safeDps(item?.mh_spell_dps);
     case 'bane':
       return safeDps(item?.bane_dps);
     case 'backstab':

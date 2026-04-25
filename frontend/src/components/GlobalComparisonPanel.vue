@@ -119,7 +119,7 @@ export default {
       return [
         { key: 'main', label: 'MH', field: 'mh_dps' },
         { key: 'offhand', label: 'OH', field: 'oh_dps' },
-        { key: 'spell', label: 'Spell', fieldsByHand: { main: 'mh_spell_dps', offhand: 'oh_spell_dps' } },
+        { key: 'spell', label: 'Spell', field: 'mh_spell_dps' },
         { key: 'bane', label: 'Bane', field: 'bane_dps' },
         { key: 'backstab', label: 'BS', field: 'bs_dps' }
       ];
