@@ -169,7 +169,7 @@
           :selected-item-id="selectedItem?.item_id"
           :active-segment-keys="activeDpsSourceKeys"
           @select="selectItem"
-          @update:active-segment-keys="activeDpsSourceKeys = $event"
+          @update:active-segment-keys="updateActiveDpsSources"
         />
 
         <section class="table-panel">
@@ -675,10 +675,18 @@ export default {
         page,
         pageSize,
         ...this.filters,
+        activeDpsSources: this.activeDpsSourceKeys.join(','),
         ...extraParams,
         itemTypes: Array.isArray(this.selectedItemTypes) && this.selectedItemTypes.length > 0
           ? this.selectedItemTypes.join(',')
           : undefined
+      };
+    },
+    buildActiveDpsSortParams(extraParams = {}) {
+      return {
+        sortBy: 'active_dps',
+        sortOrder: 'desc',
+        ...extraParams
       };
     },
     async fetchItems(options = {}) {
@@ -700,7 +708,11 @@ export default {
       }
 
       try {
-        const response = await itemsApi.getItems(this.buildParams());
+        const response = await itemsApi.getItems(this.buildParams(
+          this.pageSize,
+          this.currentPage,
+          this.buildActiveDpsSortParams()
+        ));
         this.items = response.items || [];
         this.totalItems = response.pagination?.total || 0;
         this.totalPages = response.pagination?.totalPages || 0;
@@ -746,11 +758,11 @@ export default {
       }
 
       try {
-        const response = await itemsApi.getItems(this.buildParams(200, 1, {
-          view: 'chart',
-          sortBy: 'mh_dps',
-          sortOrder: 'desc'
-        }));
+        const response = await itemsApi.getItems(this.buildParams(
+          200,
+          1,
+          this.buildActiveDpsSortParams({ view: 'chart' })
+        ));
         if (this.latestComparisonRequestId === requestId) {
           this.allItemsForComparison = response.items || [];
         }
@@ -789,6 +801,12 @@ export default {
         this.currentPage = page;
         this.fetchItems();
       }
+    },
+    updateActiveDpsSources(keys) {
+      this.activeDpsSourceKeys = keys;
+      this.currentPage = 1;
+      this.fetchItems();
+      this.fetchComparisonItems();
     },
     resetGlobalDpsGraph() {
       this.activeDpsSourceKeys = [...DEFAULT_DPS_SOURCE_KEYS];

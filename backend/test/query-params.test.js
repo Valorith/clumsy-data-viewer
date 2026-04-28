@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseNumberParam, parseItemTypesParam } = require('../utils/query-params');
+const { parseNumberParam, parseItemTypesParam, parseDpsSourcesParam } = require('../utils/query-params');
 
 test('parseNumberParam returns default for undefined', () => {
   assert.strictEqual(parseNumberParam(undefined, 10), 10);
@@ -67,4 +67,28 @@ test('parseItemTypesParam flattens array inputs', () => {
   const { itemTypes, error } = parseItemTypesParam(['7', '8']);
   assert.deepEqual(itemTypes, [7, 8]);
   assert.equal(error, undefined);
+});
+
+test('parseDpsSourcesParam returns default active sources when missing', () => {
+  const { dpsSources, error } = parseDpsSourcesParam(undefined);
+  assert.deepEqual(dpsSources, ['main', 'spell', 'bane', 'backstab']);
+  assert.equal(error, undefined);
+});
+
+test('parseDpsSourcesParam parses valid comma-separated values', () => {
+  const { dpsSources, error } = parseDpsSourcesParam('offhand, spell, bane');
+  assert.deepEqual(dpsSources, ['offhand', 'spell', 'bane']);
+  assert.equal(error, undefined);
+});
+
+test('parseDpsSourcesParam deduplicates source values', () => {
+  const { dpsSources, error } = parseDpsSourcesParam('main,spell,main');
+  assert.deepEqual(dpsSources, ['main', 'spell']);
+  assert.equal(error, undefined);
+});
+
+test('parseDpsSourcesParam rejects invalid source values', () => {
+  const { dpsSources, error } = parseDpsSourcesParam('main,pet');
+  assert.deepEqual(dpsSources, undefined);
+  assert.equal(error, 'Invalid activeDpsSources parameter');
 });

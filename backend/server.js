@@ -7,7 +7,7 @@ const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
 const { loadConfig, getPoolConfig } = require('./config');
-const { parseNumberParam, parseItemTypesParam } = require('./utils/query-params');
+const { parseNumberParam, parseItemTypesParam, parseDpsSourcesParam } = require('./utils/query-params');
 
 const config = loadConfig();
 
@@ -70,25 +70,55 @@ app.get('/api/items', async (req, res) => {
     if (itemTypesError) {
       return res.status(400).json({ error: itemTypesError });
     }
+    const { dpsSources, error: dpsSourcesError } = parseDpsSourcesParam(req.query.activeDpsSources);
+    if (dpsSourcesError) {
+      return res.status(400).json({ error: dpsSourcesError });
+    }
     const sortBy = req.query.sortBy || 'item_id';
     const sortOrder = req.query.sortOrder === 'desc' ? 'DESC' : 'ASC';
     
     const validSortFields = ['item_id', 'name', 'mh_dps', 'mh_melee_dps', 'mh_spell_dps',
                             'oh_dps', 'oh_melee_dps', 'oh_spell_dps', 'mh_oh_dps',
-                            'bs_dps', 'bane_dps', 'total_dps'];
+                            'bs_dps', 'bane_dps', 'total_dps', 'active_dps'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'item_id';
     const derivedOffhandDpsSql = `
       CASE
-        WHEN ip.oh_dps > 0 THEN ip.oh_dps
-        WHEN ip.mh_oh_dps > ip.mh_dps THEN ip.mh_oh_dps - ip.mh_dps
+        WHEN COALESCE(ip.oh_dps, 0) > 0 THEN COALESCE(ip.oh_dps, 0)
+        WHEN COALESCE(ip.mh_oh_dps, 0) > COALESCE(ip.mh_dps, 0) THEN COALESCE(ip.mh_oh_dps, 0) - COALESCE(ip.mh_dps, 0)
         ELSE 0
       END
     `;
+    const dpsSourceExpressions = {
+      main: `
+        CASE
+          WHEN COALESCE(ip.mh_melee_dps, 0) > 0 THEN COALESCE(ip.mh_melee_dps, 0)
+          ELSE GREATEST(0, COALESCE(ip.mh_dps, 0) - COALESCE(ip.mh_spell_dps, 0))
+        END
+      `,
+      offhand: `
+        CASE
+          WHEN COALESCE(ip.oh_melee_dps, 0) > 0 THEN COALESCE(ip.oh_melee_dps, 0)
+          ELSE GREATEST(0, (${derivedOffhandDpsSql}) - COALESCE(ip.oh_spell_dps, 0))
+        END
+      `,
+      spell: dpsSources.includes('offhand')
+        ? 'COALESCE(ip.oh_spell_dps, 0)'
+        : 'COALESCE(ip.mh_spell_dps, 0)',
+      bane: 'COALESCE(ip.bane_dps, 0)',
+      backstab: 'COALESCE(ip.bs_dps, 0)'
+    };
+    const activeDpsExpression = dpsSources
+      .map(source => `(${dpsSourceExpressions[source]})`)
+      .join(' + ');
     const sortExpressions = {
       name: 'i.Name',
-      oh_dps: `(${derivedOffhandDpsSql})`
+      oh_dps: `(${derivedOffhandDpsSql})`,
+      active_dps: `(${activeDpsExpression})`
     };
     const sortExpression = sortExpressions[sortField] || `ip.${sortField}`;
+    const secondarySortExpression = sortField === 'active_dps'
+      ? ', ip.total_dps DESC, ip.item_id ASC'
+      : sortField === 'item_id' ? '' : ', ip.item_id ASC';
     
     let whereConditions = ['1=1'];
     let queryParams = [];
@@ -190,7 +220,7 @@ app.get('/api/items', async (req, res) => {
       FROM items_parses ip
       LEFT JOIN items i ON ip.item_id = i.id
       WHERE ${whereClause}
-      ORDER BY ${sortExpression} ${sortOrder}
+      ORDER BY ${sortExpression} ${sortOrder}${secondarySortExpression}
       LIMIT ? OFFSET ?
     `;
     
