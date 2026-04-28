@@ -3,7 +3,10 @@
     <div class="comparison-head">
       <div>
         <h2>Global DPS</h2>
-        <p v-if="displayedBars.length">Showing top {{ displayedBars.length }} of {{ items.length }} items by active DPS</p>
+        <p v-if="displayedBars.length">
+          Showing all {{ displayedBars.length }} filtered items by active DPS
+          <span v-if="selectedBarIndex >= 0">Selected rank {{ selectedBarIndex + 1 }}</span>
+        </p>
         <p v-else>{{ loading ? 'Loading comparison...' : 'No comparison rows available' }}</p>
       </div>
       <div class="comparison-legend" aria-label="DPS component legend">
@@ -42,13 +45,14 @@
         <span>{{ formatDPS(maxValue / 2) }}</span>
         <span>0.00</span>
       </div>
-      <div class="bar-field" :class="{ loading }">
+      <div ref="barScroller" class="bar-field" :class="{ loading }" @scroll="scheduleScrollbarUpdate">
         <button
           v-for="(bar, index) in displayedBars"
           :key="bar.item.item_id"
           type="button"
           :class="['dps-bar', { selected: bar.item.item_id === selectedItemId }]"
           :style="{ height: bar.height }"
+          :data-item-id="bar.item.item_id"
           :aria-label="bar.title"
           @focus="showTooltip(index, $event)"
           @blur="hideTooltip"
@@ -68,6 +72,19 @@
         <div v-if="!displayedBars.length" class="empty-chart">
           {{ loading ? 'Loading...' : 'No items match the current filters.' }}
         </div>
+      </div>
+      <div class="scrollbar-spacer" aria-hidden="true"></div>
+      <div
+        ref="scrollbarTrack"
+        class="chart-scrollbar"
+        aria-hidden="true"
+        @pointerdown="handleScrollbarTrackPointerDown"
+      >
+        <div
+          ref="scrollbarThumb"
+          class="chart-scrollbar-thumb"
+          @pointerdown.stop="startScrollbarDrag"
+        ></div>
       </div>
       <div class="average-line" :style="{ bottom: averageLineBottom }">
         <span>Avg: {{ formatDPS(averageValue) }}</span>
@@ -123,6 +140,18 @@ export default {
       tooltipPosition: {
         left: '0px',
         top: '0px'
+      },
+      scrollbarMetrics: {
+        left: 0,
+        width: 64,
+        maxThumbLeft: 0,
+        scrollableWidth: 0
+      },
+      scrollbarFrame: null,
+      scrollbarDrag: {
+        active: false,
+        startX: 0,
+        startScrollLeft: 0
       }
     };
   },
@@ -155,8 +184,7 @@ export default {
           const activeDifference = this.getValue(b) - this.getValue(a);
           if (activeDifference !== 0) return activeDifference;
           return Number(b.total_dps || 0) - Number(a.total_dps || 0);
-        })
-        .slice(0, 50);
+        });
     },
     displayedBars() {
       const entries = this.displayedItems.map((item) => ({
@@ -167,6 +195,11 @@ export default {
 
       return entries.map((entry) => this.createBar(entry.item, entry.value, maxValue));
     },
+    selectedBarIndex() {
+      if (!this.selectedItemId) return -1;
+      const selectedId = String(this.selectedItemId);
+      return this.displayedBars.findIndex((bar) => this.getItemId(bar.item) === selectedId);
+    },
     maxValue() {
       return Math.max(...this.displayedBars.map((bar) => bar.value), 0);
     },
@@ -176,7 +209,10 @@ export default {
     },
     averageLineBottom() {
       if (!this.maxValue) return '0%';
-      return `${Math.min(96, Math.max(2, (this.averageValue / this.maxValue) * 100))}%`;
+      const plotHeight = 170;
+      const scrollbarHeight = 30;
+      const percent = Math.min(0.96, Math.max(0.02, this.averageValue / this.maxValue));
+      return `${Math.round(scrollbarHeight + (percent * plotHeight))}px`;
     },
     activeTooltip() {
       if (this.activeTooltipIndex === null) return null;
@@ -195,6 +231,30 @@ export default {
         placementClass: `placement-${this.tooltipPlacement}`
       };
     }
+  },
+  watch: {
+    selectedItemId() {
+      this.scrollSelectedBarIntoView();
+    },
+    displayedBars() {
+      this.scrollSelectedBarIntoView();
+      this.scheduleScrollbarUpdate();
+    }
+  },
+  mounted() {
+    this.scrollSelectedBarIntoView(false);
+    this.updateScrollbar();
+    window.addEventListener('resize', this.scheduleScrollbarUpdate);
+    window.addEventListener('pointermove', this.handleScrollbarDrag);
+    window.addEventListener('pointerup', this.stopScrollbarDrag);
+  },
+  beforeUnmount() {
+    if (this.scrollbarFrame !== null) {
+      window.cancelAnimationFrame(this.scrollbarFrame);
+    }
+    window.removeEventListener('resize', this.scheduleScrollbarUpdate);
+    window.removeEventListener('pointermove', this.handleScrollbarDrag);
+    window.removeEventListener('pointerup', this.stopScrollbarDrag);
   },
   methods: {
     formatDPS,
@@ -237,6 +297,111 @@ export default {
     },
     getValue(item) {
       return getActiveDps(item, this.activeSegmentKeys);
+    },
+    getItemId(item) {
+      return String(item?.item_id ?? '');
+    },
+    scrollSelectedBarIntoView(smooth = true) {
+      if (!this.selectedItemId) return;
+      this.$nextTick(() => {
+        const scroller = this.$refs.barScroller;
+        if (!scroller) return;
+
+        const selectedId = String(this.selectedItemId);
+        const selectedBar = Array.from(scroller.querySelectorAll('.dps-bar'))
+          .find((bar) => bar.dataset.itemId === selectedId);
+        if (!selectedBar) return;
+
+        const targetLeft = selectedBar.offsetLeft - (scroller.clientWidth / 2) + (selectedBar.offsetWidth / 2);
+        scroller.scrollTo({
+          left: Math.max(0, targetLeft),
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+        this.scheduleScrollbarUpdate();
+      });
+    },
+    scheduleScrollbarUpdate() {
+      if (this.scrollbarFrame !== null) return;
+      this.scrollbarFrame = window.requestAnimationFrame(() => {
+        this.scrollbarFrame = null;
+        this.updateScrollbar();
+      });
+    },
+    updateScrollbar() {
+      const scroller = this.$refs.barScroller;
+      const track = this.$refs.scrollbarTrack;
+      const thumb = this.$refs.scrollbarThumb;
+      if (!scroller || !track || !thumb) return;
+
+      const scrollableWidth = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      const trackWidth = track.clientWidth;
+      const thumbWidth = scrollableWidth > 0
+        ? Math.min(trackWidth, Math.max(64, Math.round((scroller.clientWidth / scroller.scrollWidth) * trackWidth)))
+        : Math.max(64, trackWidth);
+      const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
+      const left = scrollableWidth > 0
+        ? Math.round((scroller.scrollLeft / scrollableWidth) * maxThumbLeft)
+        : 0;
+
+      this.scrollbarMetrics = {
+        left,
+        width: thumbWidth,
+        maxThumbLeft,
+        scrollableWidth
+      };
+      thumb.style.width = `${thumbWidth}px`;
+      thumb.style.transform = `translate3d(${left}px, 0, 0)`;
+    },
+    scrollToTrackPosition(clientX) {
+      const scroller = this.$refs.barScroller;
+      const track = this.$refs.scrollbarTrack;
+      if (!scroller || !track) return;
+
+      const rect = track.getBoundingClientRect();
+      const maxThumbLeft = Math.max(0, rect.width - this.scrollbarMetrics.width);
+      const targetThumbLeft = Math.min(
+        maxThumbLeft,
+        Math.max(0, clientX - rect.left - this.scrollbarMetrics.width / 2)
+      );
+      const scrollableWidth = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      scroller.scrollTo({
+        left: maxThumbLeft > 0 ? (targetThumbLeft / maxThumbLeft) * scrollableWidth : 0,
+        behavior: 'auto'
+      });
+    },
+    handleScrollbarTrackPointerDown(event) {
+      this.scrollToTrackPosition(event.clientX);
+    },
+    startScrollbarDrag(event) {
+      const scroller = this.$refs.barScroller;
+      if (!scroller) return;
+
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      this.scrollbarDrag = {
+        active: true,
+        startX: event.clientX,
+        startScrollLeft: scroller.scrollLeft
+      };
+    },
+    handleScrollbarDrag(event) {
+      if (!this.scrollbarDrag.active) return;
+      const scroller = this.$refs.barScroller;
+      if (!scroller) return;
+
+      const { maxThumbLeft, scrollableWidth } = this.scrollbarMetrics;
+      if (!maxThumbLeft || !scrollableWidth) return;
+
+      const deltaX = event.clientX - this.scrollbarDrag.startX;
+      const scrollDelta = (deltaX / maxThumbLeft) * scrollableWidth;
+      scroller.scrollLeft = this.scrollbarDrag.startScrollLeft + scrollDelta;
+    },
+    stopScrollbarDrag() {
+      if (!this.scrollbarDrag.active) return;
+      this.scrollbarDrag = {
+        active: false,
+        startX: 0,
+        startScrollLeft: 0
+      };
     },
     getStoredTotalValue(item) {
       return Math.max(0, Number(item?.total_dps || 0));
@@ -290,8 +455,9 @@ export default {
       };
     },
     getBarTitle(item, activeTotal) {
+      const rank = this.displayedItems.findIndex((entry) => this.getItemId(entry) === this.getItemId(item)) + 1;
       const lines = [
-        `${item.name || `Item #${item.item_id}`}: ${formatDPS(activeTotal)} active DPS`,
+        `#${rank} ${item.name || `Item #${item.item_id}`}: ${formatDPS(activeTotal)} active DPS`,
         ...this.activeSegments.map((segment) => (
           `${segment.label} contribution: ${formatDPS(this.getScaledSegmentValue(item, segment))}`
         ))
@@ -327,6 +493,11 @@ export default {
   margin: 5px 0 0;
   color: var(--text-muted);
   font-size: 0.78rem;
+}
+
+.comparison-head p span {
+  margin-left: 8px;
+  color: var(--brass-bright);
 }
 
 .comparison-legend {
@@ -478,15 +649,19 @@ export default {
   min-width: 0;
   display: grid;
   grid-template-columns: 54px 1fr;
-  height: 170px;
+  grid-template-rows: 170px 30px;
+  height: 200px;
   border: 1px solid var(--line-strong);
   background:
     linear-gradient(rgba(214, 194, 153, 0.08) 1px, transparent 1px),
     rgba(18, 18, 16, 0.72);
   background-size: 100% 25%;
+  overflow: hidden;
 }
 
 .y-axis {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -499,19 +674,113 @@ export default {
 }
 
 .bar-field {
+  grid-column: 2;
+  grid-row: 1;
   position: relative;
   display: flex;
   align-items: end;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
-  padding: 16px 10px 8px;
-  overflow: visible;
+  padding: 16px 12px 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: auto;
+  scroll-padding-inline: 45%;
+  scrollbar-width: none;
+}
+
+.bar-field::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.bar-field::before,
+.bar-field::after {
+  content: '';
+  position: sticky;
+  z-index: 2;
+  width: 18px;
+  align-self: stretch;
+  flex: 0 0 18px;
+  pointer-events: none;
+}
+
+.bar-field::before {
+  left: 0;
+  margin-left: -12px;
+  background: linear-gradient(90deg, rgba(18, 18, 16, 0.94), rgba(18, 18, 16, 0));
+}
+
+.bar-field::after {
+  right: 0;
+  margin-right: -12px;
+  background: linear-gradient(270deg, rgba(18, 18, 16, 0.94), rgba(18, 18, 16, 0));
+}
+
+.scrollbar-spacer {
+  grid-column: 1;
+  grid-row: 2;
+  border-top: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  background: rgba(13, 13, 12, 0.82);
+}
+
+.chart-scrollbar {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  align-self: stretch;
+  margin: 5px 12px 6px;
+  border: 1px solid rgba(214, 194, 153, 0.28);
+  background:
+    linear-gradient(180deg, rgba(214, 194, 153, 0.14), rgba(214, 194, 153, 0.04)),
+    rgba(13, 13, 12, 0.92);
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 180, 0.08);
+}
+
+.chart-scrollbar-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  min-width: 64px;
+  border: 1px solid rgba(214, 194, 153, 0.68);
+  background:
+    linear-gradient(180deg, rgba(232, 205, 142, 0.95), rgba(151, 105, 48, 0.9));
+  cursor: grab;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 243, 201, 0.35),
+    0 0 12px rgba(214, 194, 153, 0.2);
+  touch-action: none;
+  will-change: transform;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.chart-scrollbar-thumb::before {
+  content: '';
+  position: absolute;
+  inset: 4px 50%;
+  width: 16px;
+  transform: translateX(-50%);
+  border-left: 1px solid rgba(36, 25, 12, 0.56);
+  border-right: 1px solid rgba(36, 25, 12, 0.56);
+}
+
+.chart-scrollbar-thumb:hover {
+  border-color: var(--brass-bright);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 243, 201, 0.45),
+    0 0 16px rgba(214, 194, 153, 0.32);
+}
+
+.chart-scrollbar-thumb:active {
+  cursor: grabbing;
 }
 
 .dps-bar {
-  flex: 1 1 8px;
-  min-width: 4px;
-  max-width: 16px;
+  flex: 0 0 12px;
+  min-width: 12px;
   align-self: end;
   padding: 0;
   border: 1px solid rgba(16, 16, 14, 0.62);
@@ -520,7 +789,7 @@ export default {
   overflow: hidden;
   display: flex;
   flex-direction: column-reverse;
-  transition: opacity 0.16s ease, outline-color 0.16s ease;
+  transition: opacity 0.16s ease, outline-color 0.16s ease, transform 0.16s ease;
 }
 
 .sr-only {
@@ -562,11 +831,18 @@ export default {
 }
 
 .dps-bar:hover,
-.dps-bar:focus-visible,
-.dps-bar.selected {
+.dps-bar:focus-visible {
   opacity: 1;
   outline: 1px solid var(--brass-bright);
   outline-offset: 1px;
+}
+
+.dps-bar.selected {
+  opacity: 1;
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(16, 16, 14, 0.88), 0 0 16px rgba(214, 194, 153, 0.28);
 }
 
 .bar-tooltip {

@@ -164,7 +164,7 @@
 
         <GlobalComparisonPanel
           ref="globalComparisonPanel"
-          :items="allItemsForComparison.length ? allItemsForComparison : items"
+          :items="allItemsForComparison.length ? allItemsForComparison : activeTableItems"
           :loading="comparisonLoading"
           :selected-item-id="selectedItem?.item_id"
           :active-segment-keys="activeDpsSourceKeys"
@@ -206,6 +206,7 @@
             :items="activeTableItems"
             :selected-item-id="selectedItem?.item_id"
             :active-segment-keys="activeDpsSourceKeys"
+            :rank-offset="rankOffset"
             @select="selectItem"
           />
           <div v-else class="state-panel">
@@ -444,16 +445,20 @@ export default {
       const total = source.reduce((sum, item) => sum + getComparableTotalDps(item), 0);
       return total / source.length;
     },
-    activeComparisonItemsForAverage() {
+    comparisonItemsByActiveRank() {
       const source = this.allItemsForComparison.length ? this.allItemsForComparison : this.items;
       return [...source]
         .filter((item) => getActiveDps(item, this.activeDpsSourceKeys) > 0)
         .sort((a, b) => {
           const activeDifference = getActiveDps(b, this.activeDpsSourceKeys) - getActiveDps(a, this.activeDpsSourceKeys);
           if (activeDifference !== 0) return activeDifference;
-          return getComparableTotalDps(b) - getComparableTotalDps(a);
-        })
-        .slice(0, 50);
+          const totalDifference = getComparableTotalDps(b) - getComparableTotalDps(a);
+          if (totalDifference !== 0) return totalDifference;
+          return Number(a?.item_id ?? 0) - Number(b?.item_id ?? 0);
+        });
+    },
+    activeComparisonItemsForAverage() {
+      return this.comparisonItemsByActiveRank.slice(0, 50);
     },
     activeTableItems() {
       return [...this.items]
@@ -461,8 +466,13 @@ export default {
         .sort((a, b) => {
           const activeDifference = getActiveDps(b, this.activeDpsSourceKeys) - getActiveDps(a, this.activeDpsSourceKeys);
           if (activeDifference !== 0) return activeDifference;
-          return getComparableTotalDps(b) - getComparableTotalDps(a);
+          const totalDifference = getComparableTotalDps(b) - getComparableTotalDps(a);
+          if (totalDifference !== 0) return totalDifference;
+          return Number(a?.item_id ?? 0) - Number(b?.item_id ?? 0);
         });
+    },
+    rankOffset() {
+      return Math.max(0, (this.currentPage - 1) * this.pageSize);
     },
     emptyTableMessage() {
       if (this.error) return 'The API is unavailable or returned an error.';
@@ -758,13 +768,28 @@ export default {
       }
 
       try {
-        const response = await itemsApi.getItems(this.buildParams(
-          200,
+        const pageSize = 200;
+        const firstResponse = await itemsApi.getItems(this.buildParams(
+          pageSize,
           1,
           this.buildActiveDpsSortParams({ view: 'chart' })
         ));
+        const totalPages = firstResponse.pagination?.totalPages || 1;
+        const remainingResponses = [];
+
+        for (let page = 2; page <= totalPages; page += 1) {
+          remainingResponses.push(await itemsApi.getItems(this.buildParams(
+            pageSize,
+            page,
+            this.buildActiveDpsSortParams({ view: 'chart' })
+          )));
+        }
+
         if (this.latestComparisonRequestId === requestId) {
-          this.allItemsForComparison = response.items || [];
+          this.allItemsForComparison = [
+            ...(firstResponse.items || []),
+            ...remainingResponses.flatMap((response) => response.items || [])
+          ];
         }
       } catch (error) {
         if (this.latestComparisonRequestId === requestId) {
@@ -777,17 +802,34 @@ export default {
       }
     },
     async selectItem(item) {
-      const localItem = this.items.find((entry) => entry.item_id === item.item_id);
-      this.selectedItem = localItem || item;
+      if (!item) return;
 
-      if (localItem || item.icon !== undefined) return;
+      const itemId = item.item_id;
+      const rankedIndex = this.comparisonItemsByActiveRank.findIndex((entry) => entry.item_id === itemId);
+      const targetPage = rankedIndex >= 0
+        ? Math.floor(rankedIndex / this.pageSize) + 1
+        : this.currentPage;
+
+      this.selectedItem = this.items.find((entry) => entry.item_id === itemId) || item;
+
+      if (targetPage !== this.currentPage && targetPage >= 1) {
+        this.currentPage = targetPage;
+        await this.fetchItems();
+      }
+
+      const localItem = this.items.find((entry) => entry.item_id === itemId);
+      if (localItem) {
+        this.selectedItem = localItem;
+      }
+
+      if (localItem || this.selectedItem?.icon !== undefined) return;
 
       const requestId = Date.now();
       this.latestSelectedItemRequestId = requestId;
 
       try {
-        const fullItem = await itemsApi.getItem(item.item_id);
-        if (this.latestSelectedItemRequestId === requestId && this.selectedItem?.item_id === item.item_id) {
+        const fullItem = await itemsApi.getItem(itemId);
+        if (this.latestSelectedItemRequestId === requestId && this.selectedItem?.item_id === itemId) {
           this.selectedItem = fullItem;
         }
       } catch (error) {

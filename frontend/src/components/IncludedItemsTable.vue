@@ -33,7 +33,7 @@
           :style="{ '--type-color': getItemTypeColor(item.itemtype) }"
           @click="$emit('select', item)"
         >
-          <td class="rank-cell">{{ index + 1 }}</td>
+          <td class="rank-cell">{{ rankOffset + index + 1 }}</td>
           <td class="item-cell">
             <button type="button" class="item-link" @click.stop="$emit('select', item)">
               <ItemIcon
@@ -91,6 +91,10 @@ export default {
     activeSegmentKeys: {
       type: Array,
       default: () => [...DEFAULT_DPS_SOURCE_KEYS]
+    },
+    rankOffset: {
+      type: Number,
+      default: 0
     }
   },
   emits: ['select'],
