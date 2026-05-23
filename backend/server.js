@@ -369,7 +369,7 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-const PORT = process.env.SERVER_PORT || config.server.port;
+const PORT = process.env.PORT || process.env.SERVER_PORT || config.server.port;
 const HOST = config.server.host;
 
 app.listen(PORT, HOST, () => {
