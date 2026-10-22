@@ -29,7 +29,7 @@ jobs:
       - name: Build pristine Docker contexts before host dependency installs
         run: |
           docker build --tag node-backend-qa backend
-          docker run --rm --entrypoint node node-backend-qa --version | grep -Fx v22.23.4
+          docker run --rm --entrypoint node node-backend-qa --version | grep -Fx "v$(cat .node-version)"
           docker run --rm --entrypoint npm node-backend-qa test
           docker build --tag static-frontend-qa frontend
           docker run --rm --add-host backend:127.0.0.1 --entrypoint nginx static-frontend-qa -t
