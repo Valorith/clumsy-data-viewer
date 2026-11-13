@@ -6,6 +6,7 @@ on:
       - '.node-version'
       - 'package*.json'
       - 'backend/package*.json'
+      - 'backend/test/**'
       - 'frontend/package*.json'
       - 'backend/Dockerfile'
       - 'frontend/Dockerfile'
